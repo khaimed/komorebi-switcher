@@ -1,0 +1,18 @@
+[package]
+name = "komorebi-switcher"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+softbuffer = "0.4.6"
+winit = "0.30.0"
+
+[dependencies.windows]
+version = "0.59.0"
+features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+]
