@@ -1,84 +1,30 @@
-use std::{
-    num::{NonZero, NonZeroU32},
-    rc::Rc,
-};
+use windows::Win32::Foundation::HWND;
+use winit::application::ApplicationHandler;
+use winit::event::{StartCause, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
+use winit::window::WindowId;
 
-use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
-use windows::Win32::{
-    Foundation::{HWND, RECT},
-    UI::WindowsAndMessaging::GetClientRect,
-};
-use winit::raw_window_handle;
-use winit::{
-    application::ApplicationHandler,
-    dpi::PhysicalSize,
-    event::{StartCause, WindowEvent},
-    event_loop::{ActiveEventLoop, EventLoopProxy},
-    platform::windows::WindowAttributesExtWindows,
-    window::{Window, WindowAttributes, WindowId},
-};
-
-pub enum AppMessage {}
+use crate::_egui_glue::EguiWindow;
+use crate::main_window::MainWindow;
 
 pub struct App {
-    main_window: Option<Rc<Window>>,
-    #[allow(unused)]
-    proxy: EventLoopProxy<AppMessage>,
-    context: Option<softbuffer::Context<Rc<Window>>>,
-    surface: Option<softbuffer::Surface<Rc<Window>, Rc<Window>>>,
-    host: HWND,
+    pub wgpu_instance: wgpu::Instance,
+    pub host: HWND,
+    pub main_window: Option<EguiWindow<MainWindow>>,
 }
 
 impl App {
-    pub fn new(proxy: EventLoopProxy<AppMessage>, host: HWND) -> Self {
+    pub fn new(host: HWND) -> Self {
+        let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         Self {
-            proxy,
+            wgpu_instance,
             host,
             main_window: None,
-            context: None,
-            surface: None,
         }
-    }
-
-    fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        let mut attrs = WindowAttributes::default();
-
-        let mut rect = RECT::default();
-        unsafe { GetClientRect(self.host, &mut rect) }?;
-        let w = rect.right - rect.left;
-        let h = rect.bottom - rect.top;
-
-        attrs = attrs.with_inner_size(PhysicalSize::new(w, h));
-
-        let parent = Win32WindowHandle::new(unsafe { NonZero::new_unchecked(self.host.0 as _) });
-        let parent = RawWindowHandle::Win32(parent);
-
-        attrs = unsafe { attrs.with_parent_window(Some(parent)) };
-        attrs = attrs
-            .with_decorations(false)
-            .with_transparent(true)
-            .with_class_name("komorebi-switcher::window")
-            .with_undecorated_shadow(false)
-            .with_clip_children(false);
-
-        let window = event_loop.create_window(attrs)?;
-        let window = Rc::new(window);
-
-        let context =
-            softbuffer::Context::new(window.clone()).map_err(|e| anyhow::anyhow!("{e}"))?;
-        let surface = softbuffer::Surface::new(&context, window.clone())
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-
-        self.main_window.replace(window);
-
-        self.context.replace(context);
-        self.surface.replace(surface);
-
-        Ok(())
     }
 }
 
-impl ApplicationHandler<AppMessage> for App {
+impl ApplicationHandler<()> for App {
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if cause == StartCause::Init {
             self.create_main_window(event_loop)
@@ -94,68 +40,23 @@ impl ApplicationHandler<AppMessage> for App {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        match event {
-            WindowEvent::Resized(size) => {
-                let Some(surface) = &mut self.surface else {
-                    return;
-                };
+        if event == WindowEvent::CloseRequested {
+            self.main_window.take();
+            event_loop.exit();
+        }
 
-                let size = (NonZeroU32::new(size.width), NonZeroU32::new(size.height));
+        let Some(main_window) = self.main_window.as_mut() else {
+            return;
+        };
 
-                if let (Some(w), Some(h)) = size {
-                    let _ = surface.resize(w, h);
-                }
-            }
+        let resposne = main_window.handle_input(&event);
 
-            WindowEvent::RedrawRequested => {
-                let Some(surface) = &mut self.surface else {
-                    return;
-                };
+        if resposne.repaint {
+            main_window.handle_redraw();
+        }
 
-                let Some(main_window) = &self.main_window else {
-                    return;
-                };
-
-                let size = main_window.inner_size();
-
-                if let (Some(width), Some(height)) =
-                    (NonZeroU32::new(size.width), NonZeroU32::new(size.height))
-                {
-                    let Ok(mut buffer) = surface.buffer_mut() else {
-                        return;
-                    };
-
-                    let width = width.get() as usize;
-                    let height = height.get() as usize;
-
-                    const DARK_GRAY: u32 = 0xff181818;
-                    const LEMON: u32 = 0xffd1ffbd;
-
-                    for y in 0..height {
-                        for x in 0..width {
-                            let color = if x == 0 || y == 0 || x == width - 1 || y == height - 1 {
-                                LEMON
-                            } else {
-                                DARK_GRAY
-                            };
-                            buffer[y * width + x] = color;
-                        }
-                    }
-
-                    let _ = buffer.present();
-                }
-            }
-
-            WindowEvent::CloseRequested => {
-                self.main_window.take();
-                event_loop.exit();
-            }
-
-            WindowEvent::MouseInput { .. } => {
-                dbg!(event);
-            }
-
-            _ => {}
+        if let WindowEvent::Resized(size) = event {
+            main_window.handle_resized(size);
         }
     }
 }

@@ -5,8 +5,13 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
-softbuffer = "0.4.6"
 winit = "0.30.0"
+raw-window-handle = "0.6"
+egui = "0.31"
+egui-winit = "0.31.0"
+egui-wgpu = "0.31.0"
+wgpu = "24.0.1"
+pollster = "0.4.0"
 
 [dependencies.windows]
 version = "0.59.0"

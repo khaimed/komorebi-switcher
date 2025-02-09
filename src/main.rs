@@ -1,4 +1,4 @@
-use app::{App, AppMessage};
+use app::App;
 use utils::RGB;
 use windows::core::*;
 use windows::Win32::Foundation::*;
@@ -6,8 +6,26 @@ use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoop;
 
+mod _egui_glue;
 mod app;
+mod main_window;
 mod utils;
+
+unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let rect = lparam.0 as *const RECT;
+    let rect = *rect;
+
+    let _ = MoveWindow(
+        hwnd,
+        0,
+        0,
+        rect.right - rect.left,
+        rect.bottom - rect.top,
+        true,
+    );
+
+    true.into()
+}
 
 unsafe extern "system" fn wndproc_host(
     hwnd: HWND,
@@ -17,12 +35,14 @@ unsafe extern "system" fn wndproc_host(
 ) -> LRESULT {
     // Resize children when this host is resized
     if msg == WM_SIZE {
-        unsafe extern "system" fn enumerate_callback(hwnd: HWND, _lparam: LPARAM) -> BOOL {
-            dbg!(1);
-            let _ = PostMessageW(Some(hwnd), WM_SIZE, WPARAM::default(), LPARAM::default());
-            true.into()
+        let mut rect = RECT::default();
+        if GetClientRect(hwnd, &mut rect).is_ok() {
+            let _ = EnumChildWindows(
+                Some(hwnd),
+                Some(enum_child_resize),
+                LPARAM(&rect as *const _ as _),
+            );
         }
-        let _ = EnumChildWindows(Some(hwnd), Some(enumerate_callback), LPARAM::default());
     }
 
     DefWindowProcW(hwnd, msg, wparam, lparam)
@@ -70,12 +90,12 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let evl = EventLoop::<AppMessage>::with_user_event().build()?;
+    let evl = EventLoop::new()?;
 
     let hinstance = unsafe { GetModuleHandleW(None) }?;
     let host = unsafe { create_host(hinstance) }?;
 
-    let mut app = App::new(evl.create_proxy(), host);
+    let mut app = App::new(host);
     evl.run_app(&mut app)?;
 
     Ok(())
