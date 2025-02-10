@@ -103,6 +103,9 @@ impl MainWindow {
 
 impl RootView for &mut MainWindow {
     fn draw(self, ctx: &egui::Context) {
+        let mut visuals = egui::Visuals::default();
+        visuals.panel_fill = egui::Color32::TRANSPARENT;
+        ctx.set_visuals(visuals);
         egui::CentralPanel::default().show(ctx, |ui| {
             let response = self.draw(ui);
             self.resize_host_to_rect(response.response.rect);

@@ -55,8 +55,15 @@ impl ApplicationHandler<()> for App {
             main_window.handle_redraw();
         }
 
-        if let WindowEvent::Resized(size) = event {
-            main_window.handle_resized(size);
+        match event {
+            WindowEvent::Resized(size) => {
+                main_window.handle_resized(size);
+            }
+
+            WindowEvent::CursorLeft { .. } => {
+                main_window.request_redraw();
+            }
+            _ => {}
         }
     }
 }

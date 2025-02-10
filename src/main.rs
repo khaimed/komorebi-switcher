@@ -84,7 +84,7 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
 
     SetParent(hwnd, Some(taskbar_hwnd))?;
 
-    SetLayeredWindowAttributes(hwnd, RGB(0, 255, 255), 255, LWA_ALPHA)?;
+    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 0, LWA_COLORKEY)?;
 
     Ok(hwnd)
 }
