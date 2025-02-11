@@ -10,6 +10,10 @@ use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
+pub trait EguiView {
+    fn update(self, ctx: &egui::Context);
+}
+
 pub struct EguiWindow<T> {
     window: Arc<Window>,
     pub surface: SurfaceState,
@@ -45,15 +49,11 @@ impl<T> EguiWindow<T> {
 
 impl<'a, T: 'a> EguiWindow<T>
 where
-    &'a mut T: RootView,
+    &'a mut T: EguiView,
 {
     pub fn handle_redraw(&'a mut self) {
         self.surface.handle_redraw(&self.window, &mut self.state);
     }
-}
-
-pub trait RootView {
-    fn draw(self, ctx: &egui::Context);
 }
 
 pub struct EguiRenderer {
@@ -256,7 +256,7 @@ impl SurfaceState {
         }
     }
 
-    pub fn handle_redraw(&mut self, window: &Arc<Window>, ui_container: impl RootView) {
+    pub fn handle_redraw(&mut self, window: &Arc<Window>, ui_container: impl EguiView) {
         let screen_descriptor = ScreenDescriptor {
             size_in_pixels: [self.surface_config.width, self.surface_config.height],
             pixels_per_point: window.scale_factor() as f32 * self.scale_factor,
@@ -292,7 +292,7 @@ impl SurfaceState {
 
             let ctx = self.egui_renderer.context();
 
-            ui_container.draw(ctx);
+            ui_container.update(ctx);
 
             self.egui_renderer.end_frame_and_draw(
                 &self.device,

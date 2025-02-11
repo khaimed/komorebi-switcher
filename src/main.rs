@@ -27,22 +27,35 @@ unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL 
     true.into()
 }
 
+unsafe extern "system" fn enum_child_kill(hwnd: HWND, _lparam: LPARAM) -> BOOL {
+    let _ = SendMessageW(hwnd, WM_CLOSE, None, None);
+    true.into()
+}
+
 unsafe extern "system" fn wndproc_host(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
     lparam: LPARAM,
 ) -> LRESULT {
-    // Resize children when this host is resized
-    if msg == WM_SIZE {
-        let mut rect = RECT::default();
-        if GetClientRect(hwnd, &mut rect).is_ok() {
-            let _ = EnumChildWindows(
-                Some(hwnd),
-                Some(enum_child_resize),
-                LPARAM(&rect as *const _ as _),
-            );
+    match msg {
+        // Resize children when this host is resized
+        WM_SIZE => {
+            let mut rect = RECT::default();
+            if GetClientRect(hwnd, &mut rect).is_ok() {
+                let _ = EnumChildWindows(
+                    Some(hwnd),
+                    Some(enum_child_resize),
+                    LPARAM(&rect as *const _ as _),
+                );
+            }
         }
+
+        WM_CLOSE => {
+            let _ = EnumChildWindows(Some(hwnd), Some(enum_child_kill), LPARAM::default());
+        }
+
+        _ => {}
     }
 
     DefWindowProcW(hwnd, msg, wparam, lparam)

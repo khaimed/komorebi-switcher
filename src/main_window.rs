@@ -9,7 +9,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
-use crate::_egui_glue::{EguiWindow, RootView};
+use crate::_egui_glue::{EguiView, EguiWindow};
 use crate::app::App;
 
 pub struct MainWindow {
@@ -101,11 +101,12 @@ impl MainWindow {
     }
 }
 
-impl RootView for &mut MainWindow {
-    fn draw(self, ctx: &egui::Context) {
+impl EguiView for &mut MainWindow {
+    fn update(self, ctx: &egui::Context) {
         let mut visuals = egui::Visuals::default();
         visuals.panel_fill = egui::Color32::TRANSPARENT;
         ctx.set_visuals(visuals);
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let response = self.draw(ui);
             self.resize_host_to_rect(response.response.rect);
