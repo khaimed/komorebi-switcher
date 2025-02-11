@@ -1,16 +1,18 @@
-use windows::Win32::Foundation::HWND;
+use std::collections::HashMap;
+
+use windows::Win32::Foundation::{HWND, RECT};
+use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
 use crate::_egui_glue::EguiWindow;
-use crate::main_window::MainWindow;
 
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
-    pub host: HWND,
-    pub main_window: Option<EguiWindow<MainWindow>>,
+    pub taskbar_host: HWND,
+    pub windows: HashMap<WindowId, EguiWindow>,
 }
 
 impl App {
@@ -18,9 +20,17 @@ impl App {
         let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         Self {
             wgpu_instance,
-            host,
-            main_window: None,
+            taskbar_host: host,
+            windows: Default::default(),
         }
+    }
+
+    pub fn host_size(&self) -> anyhow::Result<(u32, u32)> {
+        let mut rect = RECT::default();
+        unsafe { GetClientRect(self.taskbar_host, &mut rect) }?;
+        let w = rect.right - rect.left;
+        let h = rect.bottom - rect.top;
+        Ok((w as u32, h as u32))
     }
 }
 
@@ -37,31 +47,31 @@ impl ApplicationHandler<()> for App {
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
+        window_id: WindowId,
         event: WindowEvent,
     ) {
         if event == WindowEvent::CloseRequested {
-            self.main_window.take();
+            self.windows.remove(&window_id);
             event_loop.exit();
         }
 
-        let Some(main_window) = self.main_window.as_mut() else {
+        let Some(window) = self.windows.get_mut(&window_id) else {
             return;
         };
 
-        let resposne = main_window.handle_input(&event);
+        let resposne = window.handle_input(&event);
 
         if resposne.repaint {
-            main_window.handle_redraw();
+            window.handle_redraw();
         }
 
         match event {
             WindowEvent::Resized(size) => {
-                main_window.handle_resized(size);
+                window.handle_resized(size);
             }
 
             WindowEvent::CursorLeft { .. } => {
-                main_window.request_redraw();
+                window.request_redraw();
             }
             _ => {}
         }

@@ -12,14 +12,14 @@ use winit::window::{Window, WindowAttributes};
 use crate::_egui_glue::{EguiView, EguiWindow};
 use crate::app::App;
 
-pub struct MainWindow {
+pub struct MainWindowView {
     window: Arc<Window>,
     host: HWND,
 
     curr_width: i32,
 }
 
-impl MainWindow {
+impl MainWindowView {
     fn new(window: Arc<Window>, host: HWND) -> Self {
         Self {
             window,
@@ -33,14 +33,11 @@ impl App {
     pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         let mut attrs = WindowAttributes::default();
 
-        let mut rect = RECT::default();
-        unsafe { GetClientRect(self.host, &mut rect) }?;
-        let w = rect.right - rect.left;
-        let h = rect.bottom - rect.top;
-
+        let (w, h) = self.host_size()?;
         attrs = attrs.with_inner_size(PhysicalSize::new(w, h));
 
-        let parent = Win32WindowHandle::new(unsafe { NonZero::new_unchecked(self.host.0 as _) });
+        let parent = unsafe { NonZero::new_unchecked(self.taskbar_host.0 as _) };
+        let parent = Win32WindowHandle::new(parent);
         let parent = RawWindowHandle::Win32(parent);
 
         attrs = unsafe { attrs.with_parent_window(Some(parent)) };
@@ -54,17 +51,17 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindow::new(window.clone(), self.host);
+        let state = MainWindowView::new(window.clone(), self.taskbar_host);
 
         let window = EguiWindow::new(window, &self.wgpu_instance, state);
 
-        self.main_window.replace(window);
+        self.windows.insert(window.id(), window);
 
         Ok(())
     }
 }
 
-impl MainWindow {
+impl MainWindowView {
     fn resize_host_to_rect(&mut self, rect: egui::Rect) {
         let width = rect.width() as f64 + 16.0 /* default margin 8 on each side */;
         let width = self.window.scale_factor() * width;
@@ -101,8 +98,8 @@ impl MainWindow {
     }
 }
 
-impl EguiView for &mut MainWindow {
-    fn update(self, ctx: &egui::Context) {
+impl EguiView for MainWindowView {
+    fn update(&mut self, ctx: &egui::Context) {
         let mut visuals = egui::Visuals::default();
         visuals.panel_fill = egui::Color32::TRANSPARENT;
         ctx.set_visuals(visuals);
