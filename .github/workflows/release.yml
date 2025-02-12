@@ -1,0 +1,31 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release
+      - run: mv ./target/release/komorebi-switcher.exe komorebi-switcher.exe
+      - run: cp komorebi-switcher.exe komorebi-switcher-${{github.ref_name}}.exe
+      - name: install NSIS
+        run: |
+          iwr -useb get.scoop.sh -outfile 'install.ps1'
+          .\install.ps1 -RunAsAdmin
+          scoop update
+          scoop bucket add extras
+          scoop install nsis 
+      - run: makensis /V4 installer.nsi
+      - run: mv komorebi-switcher-setup.exe komorebi-switcher-${{github.ref_name}}-setup.exe
+      - name: release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            komorebi-switcher-${{github.ref_name}}.exe
+            komorebi-switcher-${{github.ref_name}}-setup.exe

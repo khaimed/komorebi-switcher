@@ -1,7 +1,9 @@
 [package]
 name = "komorebi-switcher"
-version = "0.1.0"
+description = "Minimal workspaces switcher for the komorebi tiling window manager that works in the native Windows taskbar."
+version = "0.0.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 anyhow = "1"
