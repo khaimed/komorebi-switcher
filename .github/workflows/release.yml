@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     runs-on: windows-latest
@@ -24,7 +27,7 @@ jobs:
       - run: makensis /V4 installer.nsi
       - run: mv komorebi-switcher-setup.exe komorebi-switcher-${{github.ref_name}}-setup.exe
       - name: release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             komorebi-switcher-${{github.ref_name}}.exe
