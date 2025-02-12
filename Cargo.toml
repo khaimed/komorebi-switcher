@@ -37,4 +37,6 @@ features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
   "Win32_UI_Input_KeyboardAndMouse",
+  "UI_ViewManagement",
+  "deprecated",                      # needed for UI_ViewManagement 
 ]

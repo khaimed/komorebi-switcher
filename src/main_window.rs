@@ -8,6 +8,7 @@ use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows::UI::ViewManagement::{UIColorType, UISettings};
 use winit::dpi::PhysicalSize;
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
@@ -65,6 +66,7 @@ pub struct MainWindowView {
     workspaces: Vec<crate::komorebi::Workspace>,
     context_menu: muda::Menu,
     is_dragging: bool,
+    accent_light2_color: Option<egui::Color32>,
 }
 
 impl MainWindowView {
@@ -82,7 +84,7 @@ impl MainWindowView {
         };
         let hwnd = HWND(hwnd.hwnd.get() as _);
 
-        Ok(Self {
+        let mut view = Self {
             hwnd,
             window,
             host,
@@ -91,7 +93,22 @@ impl MainWindowView {
             workspaces,
             context_menu,
             is_dragging: false,
-        })
+            accent_light2_color: None,
+        };
+
+        let _ = view.update_system_accent();
+
+        Ok(view)
+    }
+
+    fn update_system_accent(&mut self) -> anyhow::Result<()> {
+        let settings = UISettings::new()?;
+
+        let color = settings.GetColorValue(UIColorType::AccentLight2)?;
+        self.accent_light2_color
+            .replace(egui::Color32::from_rgb(color.R, color.G, color.B));
+
+        Ok(())
     }
 
     fn host_rect(&self) -> anyhow::Result<RECT> {
@@ -216,20 +233,42 @@ impl MainWindowView {
     }
 
     fn workspace_button(
+        &self,
         workspace: &crate::komorebi::Workspace,
         ui: &mut egui::Ui,
     ) -> egui::Response {
+        let original_style = egui::Style::clone(ui.style());
         let style = ui.style_mut();
 
         let fill_color = if workspace.focused {
-            style.visuals.selection.bg_fill
+            if let Some(accent_light2_color) = self.accent_light2_color {
+                accent_light2_color
+            } else {
+                style.visuals.selection.bg_fill
+            }
         } else if workspace.is_empty {
             egui::Color32::TRANSPARENT
         } else {
             egui::Color32::DARK_GRAY
         };
 
-        let hover_color = style.visuals.selection.bg_fill;
+        let hover_color = if let Some(accent_light2_color) = self.accent_light2_color {
+            accent_light2_color
+        } else {
+            style.visuals.selection.bg_fill
+        };
+
+        let hover_stroke_color = if is_light_color(hover_color) {
+            egui::Color32::BLACK
+        } else {
+            style.visuals.widgets.hovered.fg_stroke.color
+        };
+
+        let inactive_stroke_color = if workspace.focused {
+            hover_stroke_color
+        } else {
+            style.visuals.widgets.inactive.fg_stroke.color
+        };
 
         let active_border_color = egui::Color32::LIGHT_GRAY;
 
@@ -248,6 +287,10 @@ impl MainWindowView {
                 width: stroke_width,
                 color: inactive_border_color,
             },
+            fg_stroke: egui::Stroke {
+                color: inactive_stroke_color,
+                ..style.visuals.widgets.inactive.fg_stroke
+            },
             ..style.visuals.widgets.hovered
         };
 
@@ -258,6 +301,10 @@ impl MainWindowView {
                 width: stroke_width,
                 color: active_border_color,
             },
+            fg_stroke: egui::Stroke {
+                color: hover_stroke_color,
+                ..style.visuals.widgets.inactive.fg_stroke
+            },
             ..style.visuals.widgets.hovered
         };
 
@@ -265,7 +312,11 @@ impl MainWindowView {
             .min_size(egui::vec2(24., 24.))
             .corner_radius(2);
 
-        ui.add(btn)
+        let response = ui.add(btn);
+
+        *ui.style_mut() = original_style;
+
+        response
     }
 
     fn should_show_context_menu(&self, ui: &mut egui::Ui) -> bool {
@@ -275,7 +326,7 @@ impl MainWindowView {
     fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
         ui.horizontal_centered(|ui| {
             for workspace in self.workspaces.iter() {
-                if Self::workspace_button(workspace, ui).clicked() && !self.is_dragging {
+                if self.workspace_button(workspace, ui).clicked() && !self.is_dragging {
                     let _ = crate::komorebi::change_workspace(workspace.idx);
                 }
             }
@@ -332,6 +383,10 @@ impl EguiView for MainWindowView {
                 let _ = self.close_host();
             }
 
+            AppMessage::SystemSettingsChanged => {
+                let _ = self.update_system_accent();
+            }
+
             _ => {}
         }
     }
@@ -360,4 +415,13 @@ impl EguiView for MainWindowView {
             self.resize_host_to_rect(response.response.rect);
         });
     }
+}
+
+fn is_light_color(color: egui::Color32) -> bool {
+    let r = color.r() as f32;
+    let g = color.g() as f32;
+    let b = color.b() as f32;
+    let hsp = 0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b);
+    let hsp = hsp.sqrt();
+    hsp > 127.5
 }

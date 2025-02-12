@@ -5,7 +5,7 @@ use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_registry::CURRENT_USER;
-use winit::event_loop::EventLoop;
+use winit::event_loop::{EventLoop, EventLoopProxy};
 
 use crate::app::{App, AppMessage};
 
@@ -47,6 +47,13 @@ unsafe extern "system" fn wndproc_host(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        // Initialize GWLP_USERDATA
+        WM_CREATE => {
+            let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
+            let proxy = create_struct.lpCreateParams as *const EventLoopProxy<AppMessage>;
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, proxy as _);
+        }
+
         // Disable position changes in y direction
         WM_WINDOWPOSCHANGING => {
             let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
@@ -76,8 +83,20 @@ unsafe extern "system" fn wndproc_host(
             }
         }
 
+        // Notify winit app to update system settings
+        WM_SETTINGCHANGE => {
+            let proxy = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let proxy = &*(proxy as *const EventLoopProxy<AppMessage>);
+            let _ = proxy.send_event(AppMessage::SystemSettingsChanged);
+        }
+
         // Close children when this host is closed
         WM_CLOSE => {
+            // Drop winit proxy
+            let proxy = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let proxy = proxy as *mut EventLoopProxy<AppMessage>;
+            drop(Box::from_raw(proxy));
+
             let _ = EnumChildWindows(Some(hwnd), Some(enum_child_close), LPARAM::default());
         }
 
@@ -87,7 +106,11 @@ unsafe extern "system" fn wndproc_host(
     DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
-unsafe fn create_host(hinstance: HMODULE, taskbar_hwnd: HWND) -> anyhow::Result<HWND> {
+unsafe fn create_host(
+    hinstance: HMODULE,
+    taskbar_hwnd: HWND,
+    proxy: EventLoopProxy<AppMessage>,
+) -> anyhow::Result<HWND> {
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
@@ -122,7 +145,7 @@ unsafe fn create_host(hinstance: HMODULE, taskbar_hwnd: HWND) -> anyhow::Result<
         None,
         None,
         None,
-        None,
+        Some(Box::into_raw(Box::new(proxy)) as _),
     )?;
 
     SetParent(hwnd, Some(taskbar_hwnd))?;
@@ -148,7 +171,7 @@ fn main() -> anyhow::Result<()> {
     let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
 
     let hinstance = unsafe { GetModuleHandleW(None) }?;
-    let host = unsafe { create_host(hinstance, taskbar_hwnd) }?;
+    let host = unsafe { create_host(hinstance, taskbar_hwnd, evl.create_proxy()) }?;
 
     let proxy = evl.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |e| {

@@ -12,6 +12,7 @@ use crate::_egui_glue::EguiWindow;
 pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
     MenuEvent(muda::MenuEvent),
+    SystemSettingsChanged,
 }
 
 pub struct App {

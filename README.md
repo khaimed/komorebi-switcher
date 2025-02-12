@@ -12,10 +12,6 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
   - **Quit**: closes the switcher
 - <kbd>Escape</kbd> while in dragging mode, will exist the dragging mode and save the switcher position.
 
-## Future plans
-
-- [ ] Use Windows system accent color
-
 ## Development
 
 Install [Rust and Cargo](https://rustup.rs/), then
