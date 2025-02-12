@@ -22,13 +22,14 @@ unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL 
     let rect = lparam.0 as *const RECT;
     let rect = *rect;
 
-    let _ = MoveWindow(
+    let _ = SetWindowPos(
         hwnd,
+        None,
         0,
         0,
         rect.right - rect.left,
         rect.bottom - rect.top,
-        true,
+        SWP_NOMOVE | SWP_FRAMECHANGED,
     );
 
     true.into()
@@ -86,9 +87,7 @@ unsafe extern "system" fn wndproc_host(
     DefWindowProcW(hwnd, msg, wparam, lparam)
 }
 
-unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
-    let taskbar_hwnd = FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null())?;
-
+unsafe fn create_host(hinstance: HMODULE, taskbar_hwnd: HWND) -> anyhow::Result<HWND> {
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
@@ -146,10 +145,17 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
 fn main() -> anyhow::Result<()> {
     let evl = EventLoop::<AppMessage>::with_user_event().build()?;
 
-    let hinstance = unsafe { GetModuleHandleW(None) }?;
-    let host = unsafe { create_host(hinstance) }?;
+    let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
 
-    let mut app = App::new(host, evl.create_proxy());
+    let hinstance = unsafe { GetModuleHandleW(None) }?;
+    let host = unsafe { create_host(hinstance, taskbar_hwnd) }?;
+
+    let proxy = evl.create_proxy();
+    muda::MenuEvent::set_event_handler(Some(move |e| {
+        let _ = proxy.send_event(AppMessage::MenuEvent(e));
+    }));
+
+    let mut app = App::new(taskbar_hwnd, host, evl.create_proxy());
     evl.run_app(&mut app)?;
 
     Ok(())

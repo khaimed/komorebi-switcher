@@ -3,22 +3,29 @@ use std::sync::Arc;
 
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
+use winit::event_loop::ActiveEventLoop;
 use winit::window::Window;
 
 use crate::app::AppMessage;
 
 pub trait EguiView {
-    fn handle_app_message(&mut self, message: &AppMessage) {
+    fn handle_app_message(&mut self, event_loop: &ActiveEventLoop, message: &AppMessage) {
+        let _ = event_loop;
         let _ = message;
+    }
+
+    fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+        let _ = event_loop;
+        let _ = event;
     }
 
     fn update(&mut self, ctx: &egui::Context);
 }
 
 pub struct EguiWindow {
-    window: Arc<Window>,
+    pub window: Arc<Window>,
     pub surface: SurfaceState,
-    view: Box<dyn EguiView>,
+    pub view: Box<dyn EguiView>,
 }
 
 impl Deref for EguiWindow {
@@ -51,8 +58,25 @@ impl EguiWindow {
         self.surface.handle_resized(size.width, size.height);
     }
 
-    pub fn handle_app_message(&mut self, message: &AppMessage) {
-        self.view.handle_app_message(message);
+    pub fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+        let resposne = self.handle_input(&event);
+
+        if resposne.repaint {
+            self.handle_redraw();
+        }
+
+        match event {
+            WindowEvent::Resized(size) => {
+                self.handle_resized(size);
+            }
+
+            WindowEvent::CursorLeft { .. } => {
+                self.request_redraw();
+            }
+            _ => {}
+        }
+
+        self.view.handle_window_event(event_loop, event);
     }
 }
 

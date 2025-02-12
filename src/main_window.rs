@@ -1,15 +1,17 @@
 use std::num::NonZero;
 use std::sync::Arc;
 
-use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
-use windows::Win32::Foundation::{HWND, LPARAM, POINT, POINTS, RECT, WPARAM};
-use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
-use windows::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetCursorPos, PostMessageW, SetWindowPos, HTCAPTION, SWP_NOMOVE, WM_CLOSE,
-    WM_NCLBUTTONDOWN,
-};
+use muda::dpi::PhysicalPosition;
+use muda::ContextMenu;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle, Win32WindowHandle};
+use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::MapWindowPoints;
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
+use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::dpi::PhysicalSize;
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
@@ -40,7 +42,7 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(window.clone(), self.host);
+        let state = MainWindowView::new(window.clone(), self.taskbar_hwnd, self.host)?;
 
         let proxy = self.proxy.clone();
 
@@ -56,21 +58,46 @@ impl App {
 
 pub struct MainWindowView {
     window: Arc<Window>,
+    hwnd: HWND,
+    taskbar_hwnd: HWND,
     host: HWND,
     curr_width: i32,
     workspaces: Vec<crate::komorebi::Workspace>,
+    context_menu: muda::Menu,
+    is_dragging: bool,
 }
 
 impl MainWindowView {
-    fn new(window: Arc<Window>, host: HWND) -> Self {
+    fn new(window: Arc<Window>, taskbar_hwnd: HWND, host: HWND) -> anyhow::Result<Self> {
         let workspaces = crate::komorebi::read_workspaces().unwrap_or_default();
 
-        Self {
+        let context_menu = muda::Menu::with_items(&[
+            &muda::MenuItem::with_id("move", "Move", true, None),
+            &muda::MenuItem::with_id("quit", "Quit", true, None),
+        ])?;
+
+        let hwnd = window.window_handle()?;
+        let RawWindowHandle::Win32(hwnd) = hwnd.as_raw() else {
+            unreachable!("Window handle must be win32")
+        };
+        let hwnd = HWND(hwnd.hwnd.get() as _);
+
+        Ok(Self {
+            hwnd,
             window,
             host,
+            taskbar_hwnd,
             curr_width: 0,
             workspaces,
-        }
+            context_menu,
+            is_dragging: false,
+        })
+    }
+
+    fn host_rect(&self) -> anyhow::Result<RECT> {
+        let mut rect = RECT::default();
+        unsafe { GetClientRect(self.host, &mut rect) }?;
+        Ok(rect)
     }
 
     fn resize_host_to_rect(&mut self, rect: egui::Rect) {
@@ -81,8 +108,7 @@ impl MainWindowView {
         if width != self.curr_width {
             self.curr_width = width;
 
-            let mut rect = RECT::default();
-            if unsafe { GetClientRect(self.host, &mut rect) }.is_ok() {
+            if let Ok(rect) = self.host_rect() {
                 let _ = unsafe {
                     SetWindowPos(
                         self.host,
@@ -98,26 +124,75 @@ impl MainWindowView {
         }
     }
 
-    fn start_host_dragging(&self, ui: &mut egui::Ui) -> anyhow::Result<()> {
-        ui.ctx().set_cursor_icon(egui::CursorIcon::Move);
+    fn focus_egui_window(&self) -> anyhow::Result<()> {
+        // loop until we get focus
+        let mut counter = 0;
+        while let Err(err) = unsafe { SetFocus(Some(self.hwnd)) } {
+            counter += 1;
+            std::thread::sleep(std::time::Duration::from_millis(100));
 
-        let mut pos = POINT::default();
-        unsafe { GetCursorPos(&mut pos) }?;
+            if counter >= 3 {
+                return Err(err.into());
+            }
+        }
 
-        let points = POINTS {
-            x: pos.x as i16,
-            y: pos.y as i16,
-        };
+        Ok(())
+    }
+
+    fn start_host_dragging(&mut self) -> anyhow::Result<()> {
+        if self.is_dragging {
+            return Ok(());
+        }
+
+        self.is_dragging = true;
+
+        let _ = unsafe { SetForegroundWindow(self.hwnd) };
+
+        self.focus_egui_window()?;
+
+        unsafe { SetCapture(self.hwnd) };
+
+        let rect = self.host_rect()?;
+        let width = rect.right - rect.left;
+        let height = rect.bottom - rect.top;
+
+        let x = rect.left + width / 2;
+        let y = rect.top + height / 2;
+
+        let points = &mut [POINT { x, y }];
+        unsafe { MapWindowPoints(Some(self.host), None, points) };
+
+        unsafe { SetCursorPos(points[0].x, points[0].y)? };
+
+        Ok(())
+    }
+
+    fn move_host(&self, position: PhysicalPosition<f64>) -> anyhow::Result<()> {
+        let points = &mut [POINT {
+            x: position.x as _,
+            y: position.y as _,
+        }];
+
+        unsafe { MapWindowPoints(Some(self.host), Some(self.taskbar_hwnd), points) };
 
         unsafe {
-            ReleaseCapture()?;
+            SetWindowPos(
+                self.host,
+                Some(HWND_TOP),
+                points[0].x - self.curr_width / 2,
+                0,
+                0,
+                0,
+                SWP_NOSIZE,
+            )
+            .map_err(Into::into)
+        }
+    }
 
-            PostMessageW(
-                Some(self.host),
-                WM_NCLBUTTONDOWN,
-                WPARAM(HTCAPTION as _),
-                LPARAM(&points as *const _ as _),
-            )?;
+    fn stop_host_dragging(&mut self) -> anyhow::Result<()> {
+        if self.is_dragging {
+            unsafe { ReleaseCapture()? };
+            self.is_dragging = false;
         }
 
         Ok(())
@@ -133,6 +208,11 @@ impl MainWindowView {
             )
             .map_err(Into::into)
         }
+    }
+
+    fn show_context_menu(&self) {
+        let hwnd = self.host.0 as _;
+        unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
     }
 
     fn workspace_button(
@@ -188,18 +268,14 @@ impl MainWindowView {
         ui.add(btn)
     }
 
-    fn draw_workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
-        if ui.input(|i| i.modifiers.shift && i.pointer.button_down(egui::PointerButton::Primary)) {
-            let _ = self.start_host_dragging(ui);
-        }
+    fn should_show_context_menu(&self, ui: &mut egui::Ui) -> bool {
+        !self.is_dragging && ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary))
+    }
 
-        if ui.input(|i| i.modifiers.alt && i.pointer.button_down(egui::PointerButton::Primary)) {
-            let _ = self.close_host();
-        }
-
+    fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
         ui.horizontal_centered(|ui| {
             for workspace in self.workspaces.iter() {
-                if Self::workspace_button(workspace, ui).clicked() {
+                if Self::workspace_button(workspace, ui).clicked() && !self.is_dragging {
                     let _ = crate::komorebi::change_workspace(workspace.idx);
                 }
             }
@@ -207,26 +283,80 @@ impl MainWindowView {
     }
 }
 
+fn is_escape_key(event: &WindowEvent) -> bool {
+    matches!(
+        event,
+        WindowEvent::KeyboardInput {
+            event: KeyEvent {
+                physical_key: PhysicalKey::Code(KeyCode::Escape),
+                state: ElementState::Released,
+                ..
+            },
+            ..
+        },
+    )
+}
+
 impl EguiView for MainWindowView {
-    fn handle_app_message(&mut self, message: &AppMessage) {
+    fn handle_window_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        event: winit::event::WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CursorMoved { position, .. } if self.is_dragging => {
+                let _ = self.move_host(position);
+            }
+
+            _ if is_escape_key(&event) && self.is_dragging => {
+                let _ = self.stop_host_dragging();
+                self.window.request_redraw();
+            }
+
+            _ => {}
+        }
+    }
+
+    fn handle_app_message(&mut self, _event_loop: &ActiveEventLoop, message: &AppMessage) {
         match message {
             AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
+
+            AppMessage::MenuEvent(e) if e.id() == "move" => {
+                if self.start_host_dragging().is_err() {
+                    let _ = unsafe { ReleaseCapture() };
+                    self.is_dragging = false;
+                }
+            }
+
+            AppMessage::MenuEvent(e) if e.id() == "quit" => {
+                let _ = self.close_host();
+            }
+
+            _ => {}
         }
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        let visuals = egui::Visuals {
-            panel_fill: egui::Color32::TRANSPARENT,
-            ..Default::default()
+        let mut visuals = egui::Visuals::default();
+
+        if !self.is_dragging {
+            visuals.panel_fill = egui::Color32::TRANSPARENT;
+        } else {
+            ctx.set_cursor_icon(egui::CursorIcon::ResizeColumn);
         };
 
         ctx.set_visuals(visuals);
 
         let margin = egui::Margin::symmetric(1, 0);
-        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(margin);
 
+        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(margin);
         egui::CentralPanel::default().frame(frame).show(ctx, |ui| {
-            let response = self.draw_workspaces_row(ui);
+            if self.should_show_context_menu(ui) {
+                self.show_context_menu();
+            }
+
+            let response = self.workspaces_row(ui);
+
             self.resize_host_to_rect(response.response.rect);
         });
     }

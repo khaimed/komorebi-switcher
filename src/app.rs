@@ -11,21 +11,24 @@ use crate::_egui_glue::EguiWindow;
 
 pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
+    MenuEvent(muda::MenuEvent),
 }
 
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
+    pub taskbar_hwnd: HWND,
     pub host: HWND,
     pub windows: HashMap<WindowId, EguiWindow>,
 }
 
 impl App {
-    pub fn new(host: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
+    pub fn new(taskbar_hwnd: HWND, host: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
         let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
 
         Self {
             wgpu_instance,
+            taskbar_hwnd,
             host,
             windows: Default::default(),
             proxy,
@@ -51,9 +54,9 @@ impl ApplicationHandler<AppMessage> for App {
 
     fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppMessage) {
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
-            window.handle_app_message(&event);
+            window.view.handle_app_message(event_loop, &event);
             window.request_redraw();
         }
     }
@@ -73,21 +76,6 @@ impl ApplicationHandler<AppMessage> for App {
             return;
         };
 
-        let resposne = window.handle_input(&event);
-
-        if resposne.repaint {
-            window.handle_redraw();
-        }
-
-        match event {
-            WindowEvent::Resized(size) => {
-                window.handle_resized(size);
-            }
-
-            WindowEvent::CursorLeft { .. } => {
-                window.request_redraw();
-            }
-            _ => {}
-        }
+        window.handle_window_event(event_loop, event);
     }
 }

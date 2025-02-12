@@ -7,14 +7,14 @@ A minimal workspace switcher for the Komorebi tiling window manager, seamlessly 
 ## Usage
 
 - <kbd>Left Click</kbd> any workspace to switch to it
-- <kbd>Shit</kbd> + <kbd>Left Click</kbd> to start dragging the switcher around to adjust its position.
-- <kbd>Alt</kbd> + <kbd>Left Click</kbd> to close the switcher.
+- <kbd>Right Click</kbd> any workspace top open context menu which has two items:
+  - **Move**: enter dragging mode, to adjust the switcher position
+  - **Quit**: closes the switcher
+- <kbd>Escape</kbd> while in dragging mode, will exist the dragging mode.
 
 ## Future plans
 
-- [ ] Save and restore last position on startup
 - [ ] Use Windows system accent color
-- [ ] Tray Icon
 
 ## Development
 
