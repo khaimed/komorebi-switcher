@@ -134,7 +134,7 @@ unsafe fn create_host(
     let window_pos_y = window_pos_y.and_then(|s| s.parse().ok());
 
     let hwnd = CreateWindowExW(
-        WS_EX_LAYERED | WS_EX_NOACTIVATE,
+        WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
         window_class,
         PCWSTR::null(),
         WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,

@@ -1,6 +1,15 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use anyhow::Context;
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use windows::core::*;
+use windows::Win32::Foundation::{HMODULE, HWND};
+use windows::Win32::Graphics::Direct2D::D2D1CreateDevice;
+use windows::Win32::Graphics::Direct3D::D3D_DRIVER_TYPE_HARDWARE;
+use windows::Win32::Graphics::Direct3D11::*;
+use windows::Win32::Graphics::DirectComposition::*;
+use windows::Win32::Graphics::Dxgi::IDXGIDevice3;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
@@ -41,13 +50,13 @@ impl EguiWindow {
         window: Arc<Window>,
         instance: &wgpu::Instance,
         view: impl EguiView + 'static,
-    ) -> Self {
-        let surface = pollster::block_on(SurfaceState::new(&window, instance));
-        Self {
+    ) -> anyhow::Result<Self> {
+        let surface = pollster::block_on(SurfaceState::new(&window, instance))?;
+        Ok(Self {
             window,
             surface,
             view: Box::new(view),
-        }
+        })
     }
 
     pub fn handle_input(&mut self, event: &WindowEvent) -> egui_winit::EventResponse {
@@ -87,19 +96,23 @@ impl EguiWindow {
 }
 
 pub struct SurfaceState {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub surface_config: wgpu::SurfaceConfiguration,
-    pub surface: wgpu::Surface<'static>,
-    pub scale_factor: f32,
-    pub egui_renderer: EguiRenderer,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    surface_config: wgpu::SurfaceConfiguration,
+    surface: wgpu::Surface<'static>,
+    scale_factor: f32,
+    egui_renderer: EguiRenderer,
+    #[allow(unused)]
+    dx12_surface: Dx12Surface,
 }
 
 impl SurfaceState {
-    pub async fn new(window: &Arc<Window>, instance: &wgpu::Instance) -> Self {
-        let surface = instance
-            .create_surface(window.clone())
-            .expect("Failed to create surface!");
+    pub async fn new(window: &Arc<Window>, instance: &wgpu::Instance) -> anyhow::Result<Self> {
+        let dx12_surface = Dx12Surface::new(window)?;
+
+        let visual = dx12_surface.wgpu_visual.as_raw();
+        let visual = wgpu::SurfaceTargetUnsafe::CompositionVisual(visual);
+        let surface = unsafe { instance.create_surface_unsafe(visual)? };
 
         let power_pref = wgpu::PowerPreference::default();
         let adapter = instance
@@ -109,7 +122,7 @@ impl SurfaceState {
                 compatible_surface: Some(&surface),
             })
             .await
-            .expect("Failed to find an appropriate adapter");
+            .context("Failed to find an appropriate adapter")?;
 
         let (width, height) = window.inner_size().into();
 
@@ -124,8 +137,7 @@ impl SurfaceState {
                 },
                 None,
             )
-            .await
-            .expect("Failed to create device");
+            .await?;
 
         let swapchain_capabilities = surface.get_capabilities(&adapter);
         let selected_format = wgpu::TextureFormat::Bgra8UnormSrgb;
@@ -133,7 +145,7 @@ impl SurfaceState {
             .formats
             .iter()
             .find(|d| **d == selected_format)
-            .expect("failed to select proper surface texture format!");
+            .context("failed to select proper surface texture format!")?;
 
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
@@ -142,24 +154,27 @@ impl SurfaceState {
             height,
             present_mode: wgpu::PresentMode::AutoVsync,
             desired_maximum_frame_latency: 0,
-            alpha_mode: swapchain_capabilities.alpha_modes[0],
+            alpha_mode: wgpu::CompositeAlphaMode::PreMultiplied,
             view_formats: vec![],
         };
 
         surface.configure(&device, &surface_config);
 
+        unsafe { dx12_surface.desktop.Commit()? };
+
         let egui_renderer = EguiRenderer::new(&device, surface_config.format, None, 1, window);
 
         let scale_factor = 1.0;
 
-        Self {
+        Ok(Self {
             device,
             queue,
             surface,
             surface_config,
             egui_renderer,
             scale_factor,
-        }
+            dx12_surface,
+        })
     }
 
     pub fn resize_surface(&mut self, width: u32, height: u32) {
@@ -197,11 +212,11 @@ impl SurfaceState {
         match surface_texture {
             Err(wgpu::SurfaceError::Outdated) => {
                 // Ignoring outdated to allow resizing and minimization
-                println!("wgpu surface outdated");
+                eprintln!("wgpu surface outdated");
                 return;
             }
             Err(_) => {
-                surface_texture.expect("Failed to acquire next swap chain texture");
+                eprintln!("Failed to acquire next swap chain texture");
                 return;
             }
             Ok(_) => {}
@@ -348,5 +363,60 @@ impl EguiRenderer {
         }
 
         self.frame_started = false;
+    }
+}
+
+struct Dx12Surface {
+    #[allow(unused)]
+    device: ID3D11Device,
+    desktop: IDCompositionDesktopDevice,
+    #[allow(unused)]
+    target: IDCompositionTarget,
+    wgpu_visual: IDCompositionVisual2,
+}
+
+impl Dx12Surface {
+    fn new(window: &Window) -> anyhow::Result<Self> {
+        let device = unsafe {
+            let mut device = None;
+            D3D11CreateDevice(
+                None,
+                D3D_DRIVER_TYPE_HARDWARE,
+                HMODULE::default(),
+                D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                None,
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                None,
+            )
+            .map(|()| device.unwrap())?
+        };
+
+        let dxgi3: IDXGIDevice3 = device.cast()?;
+        let device_2d = unsafe { D2D1CreateDevice(&dxgi3, None) }?;
+
+        let desktop: IDCompositionDesktopDevice = unsafe { DCompositionCreateDevice2(&device_2d)? };
+
+        let hwnd = window.window_handle()?;
+        let RawWindowHandle::Win32(hwnd) = hwnd.as_raw() else {
+            unreachable!()
+        };
+        let hwnd = HWND(hwnd.hwnd.get() as _);
+
+        let target = unsafe { desktop.CreateTargetForHwnd(hwnd, true) }?;
+
+        let root_visual = unsafe { desktop.CreateVisual() }?;
+        unsafe { target.SetRoot(&root_visual) }?;
+
+        let wgpu_visual = unsafe { desktop.CreateVisual() }?;
+        unsafe { root_visual.AddVisual(&wgpu_visual, false, None) }?;
+
+        Ok(Self {
+            desktop,
+            device,
+            target,
+            wgpu_visual,
+        })
     }
 }

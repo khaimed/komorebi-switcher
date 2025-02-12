@@ -25,7 +25,10 @@ pub struct App {
 
 impl App {
     pub fn new(taskbar_hwnd: HWND, host: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
-        let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::DX12,
+            ..Default::default()
+        });
 
         Self {
             wgpu_instance,

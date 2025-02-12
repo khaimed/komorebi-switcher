@@ -38,6 +38,7 @@ impl App {
             .with_active(false)
             .with_class_name("komorebi-switcher::window")
             .with_undecorated_shadow(false)
+            .with_no_redirection_bitmap(true)
             .with_clip_children(false);
 
         let window = event_loop.create_window(attrs)?;
@@ -49,7 +50,7 @@ impl App {
 
         std::thread::spawn(move || listen_for_workspaces(proxy));
 
-        let window = EguiWindow::new(window, &self.wgpu_instance, state);
+        let window = EguiWindow::new(window, &self.wgpu_instance, state).unwrap();
 
         self.windows.insert(window.id(), window);
 
@@ -249,7 +250,7 @@ impl MainWindowView {
         } else if workspace.is_empty {
             egui::Color32::TRANSPARENT
         } else {
-            egui::Color32::DARK_GRAY
+            egui::Color32::from_rgba_unmultiplied(33, 33, 33, 100)
         };
 
         let hover_color = if let Some(accent_light2_color) = self.accent_light2_color {
