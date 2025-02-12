@@ -7,7 +7,7 @@ Minimal workspaces switcher for the komorebi tiling window manager that works in
 ## Future plans
 
 - [ ] Allow moving the switcher window around the taskbar instead of hard-coded position.
-- [ ] Detect a default place to show the switcher where it doesn't cover other elements in the taskbar.
+- [ ] Use Windows system accent color
 
 ## Development
 

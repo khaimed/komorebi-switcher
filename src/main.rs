@@ -1,16 +1,15 @@
-use app::{App, AppMessage};
-use utils::RGB;
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use winit::event_loop::EventLoop;
 
+use crate::app::{App, AppMessage};
+
 mod _egui_glue;
 mod app;
 mod komorebi;
 mod main_window;
-mod utils;
 
 unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let rect = lparam.0 as *const RECT;
@@ -98,7 +97,7 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
 
     SetParent(hwnd, Some(taskbar_hwnd))?;
 
-    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 0, LWA_COLORKEY)?;
+    SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
 
     Ok(hwnd)
 }

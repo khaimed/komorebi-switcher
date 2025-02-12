@@ -1,7 +1,6 @@
 use std::num::NonZero;
 use std::sync::Arc;
 
-use egui::vec2;
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, SetWindowPos, SWP_NOMOVE};
@@ -139,7 +138,7 @@ impl MainWindowView {
         };
 
         let btn = egui::Button::new(&workspace.name)
-            .min_size(vec2(24., 24.))
+            .min_size(egui::vec2(24., 24.))
             .corner_radius(2);
 
         ui.add(btn)
