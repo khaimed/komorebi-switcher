@@ -5,6 +5,13 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
+[profile.release]
+codegen-units = 1 # Allows LLVM to perform better optimization.
+lto = true        # Enables link-time-optimizations.
+opt-level = "s"   # Prioritizes small binary size.
+panic = "abort"   # Higher performance by disabling panic handlers.
+strip = true      # Ensures debug symbols are removed.
+
 [dependencies]
 anyhow = "1"
 winit = "0.30"
