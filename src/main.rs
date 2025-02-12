@@ -27,7 +27,7 @@ unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL 
     true.into()
 }
 
-unsafe extern "system" fn enum_child_kill(hwnd: HWND, _lparam: LPARAM) -> BOOL {
+unsafe extern "system" fn enum_child_close(hwnd: HWND, _lparam: LPARAM) -> BOOL {
     let _ = SendMessageW(hwnd, WM_CLOSE, None, None);
     true.into()
 }
@@ -39,6 +39,13 @@ unsafe extern "system" fn wndproc_host(
     lparam: LPARAM,
 ) -> LRESULT {
     match msg {
+        // Disable position changes in y direction
+        WM_WINDOWPOSCHANGING => {
+            let window_pos = unsafe { &mut *(lparam.0 as *mut WINDOWPOS) };
+            window_pos.y = 0;
+            return LRESULT(0);
+        }
+
         // Resize children when this host is resized
         WM_SIZE => {
             let mut rect = RECT::default();
@@ -51,8 +58,9 @@ unsafe extern "system" fn wndproc_host(
             }
         }
 
+        // Close children when this host is closed
         WM_CLOSE => {
-            let _ = EnumChildWindows(Some(hwnd), Some(enum_child_kill), LPARAM::default());
+            let _ = EnumChildWindows(Some(hwnd), Some(enum_child_close), LPARAM::default());
         }
 
         _ => {}

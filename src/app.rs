@@ -16,7 +16,7 @@ pub enum AppMessage {
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
-    pub taskbar_host: HWND,
+    pub host: HWND,
     pub windows: HashMap<WindowId, EguiWindow>,
 }
 
@@ -26,7 +26,7 @@ impl App {
 
         Self {
             wgpu_instance,
-            taskbar_host: host,
+            host,
             windows: Default::default(),
             proxy,
         }
@@ -34,7 +34,7 @@ impl App {
 
     pub fn host_size(&self) -> anyhow::Result<(u32, u32)> {
         let mut rect = RECT::default();
-        unsafe { GetClientRect(self.taskbar_host, &mut rect) }?;
+        unsafe { GetClientRect(self.host, &mut rect) }?;
         let w = rect.right - rect.left;
         let h = rect.bottom - rect.top;
         Ok((w as u32, h as u32))

@@ -2,8 +2,12 @@ use std::num::NonZero;
 use std::sync::Arc;
 
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
-use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, SetWindowPos, SWP_NOMOVE};
+use windows::Win32::Foundation::{HWND, LPARAM, POINT, POINTS, RECT, WPARAM};
+use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetClientRect, GetCursorPos, PostMessageW, SetWindowPos, HTCAPTION, SWP_NOMOVE,
+    WM_NCLBUTTONDOWN,
+};
 use winit::dpi::PhysicalSize;
 use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
@@ -20,7 +24,7 @@ impl App {
         let (w, h) = self.host_size()?;
         attrs = attrs.with_inner_size(PhysicalSize::new(w, h));
 
-        let parent = unsafe { NonZero::new_unchecked(self.taskbar_host.0 as _) };
+        let parent = unsafe { NonZero::new_unchecked(self.host.0 as _) };
         let parent = Win32WindowHandle::new(parent);
         let parent = RawWindowHandle::Win32(parent);
 
@@ -35,7 +39,7 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(window.clone(), self.taskbar_host);
+        let state = MainWindowView::new(window.clone(), self.host);
 
         let proxy = self.proxy.clone();
 
@@ -51,18 +55,18 @@ impl App {
 
 pub struct MainWindowView {
     window: Arc<Window>,
-    taskbar_host: HWND,
+    host: HWND,
     curr_width: i32,
     workspaces: Vec<crate::komorebi::Workspace>,
 }
 
 impl MainWindowView {
-    fn new(window: Arc<Window>, taskbar_host: HWND) -> Self {
+    fn new(window: Arc<Window>, host: HWND) -> Self {
         let workspaces = crate::komorebi::read_workspaces().unwrap_or_default();
 
         Self {
             window,
-            taskbar_host,
+            host,
             curr_width: 0,
             workspaces,
         }
@@ -77,10 +81,10 @@ impl MainWindowView {
             self.curr_width = width;
 
             let mut rect = RECT::default();
-            if unsafe { GetClientRect(self.taskbar_host, &mut rect) }.is_ok() {
+            if unsafe { GetClientRect(self.host, &mut rect) }.is_ok() {
                 let _ = unsafe {
                     SetWindowPos(
-                        self.taskbar_host,
+                        self.host,
                         None,
                         0,
                         0,
@@ -91,6 +95,31 @@ impl MainWindowView {
                 };
             }
         }
+    }
+
+    fn start_host_dragging(&self, ui: &mut egui::Ui) -> anyhow::Result<()> {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Move);
+
+        let mut pos = POINT::default();
+        unsafe { GetCursorPos(&mut pos) }?;
+
+        let points = POINTS {
+            x: pos.x as i16,
+            y: pos.y as i16,
+        };
+
+        unsafe {
+            ReleaseCapture()?;
+
+            PostMessageW(
+                Some(self.host),
+                WM_NCLBUTTONDOWN,
+                WPARAM(HTCAPTION as _),
+                LPARAM(&points as *const _ as _),
+            )?;
+        }
+
+        Ok(())
     }
 
     fn workspace_button(
@@ -145,6 +174,10 @@ impl MainWindowView {
     }
 
     fn draw_workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
+        if ui.input(|i| i.modifiers.shift && i.pointer.button_down(egui::PointerButton::Primary)) {
+            let _ = self.start_host_dragging(ui);
+        }
+
         ui.horizontal_centered(|ui| {
             for workspace in self.workspaces.iter() {
                 if Self::workspace_button(workspace, ui).clicked() {

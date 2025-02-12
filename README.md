@@ -4,10 +4,16 @@ Minimal workspaces switcher for the komorebi tiling window manager that works in
 
 ![Image showcasing komorebi switcher](.github/image.png)
 
+## Usage
+
+- Left Click any workspace to switch to it
+- Shit + Left Click to start dragging the switcher around to adjust its position.
+
 ## Future plans
 
-- [ ] Allow moving the switcher window around the taskbar instead of hard-coded position.
+- [ ] Save and restore last position on startup
 - [ ] Use Windows system accent color
+- [ ] Tray Icon
 
 ## Development
 
