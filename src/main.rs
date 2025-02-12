@@ -4,6 +4,7 @@ use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
+use windows_registry::CURRENT_USER;
 use winit::event_loop::EventLoop;
 
 use crate::app::{App, AppMessage};
@@ -12,6 +13,10 @@ mod _egui_glue;
 mod app;
 mod komorebi;
 mod main_window;
+
+const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
+const WINDOW_POS_X_KEY: &str = "window-pos-x";
+const WINDOW_POS_Y_KEY: &str = "window-pos-y";
 
 unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let rect = lparam.0 as *const RECT;
@@ -45,7 +50,17 @@ unsafe extern "system" fn wndproc_host(
         WM_WINDOWPOSCHANGING => {
             let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
             window_pos.y = 0;
-            return LRESULT(0);
+        }
+
+        // Save host position to be loaded on startup
+        WM_WINDOWPOSCHANGED => {
+            let window_pos = &*(lparam.0 as *const WINDOWPOS);
+
+            let key = CURRENT_USER.create(APP_REG_KEY);
+            if let Ok(key) = key {
+                let _ = key.set_string(WINDOW_POS_X_KEY, &window_pos.x.to_string());
+                let _ = key.set_string(WINDOW_POS_Y_KEY, &window_pos.y.to_string());
+            }
         }
 
         // Resize children when this host is resized
@@ -90,13 +105,19 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
     let atom = RegisterClassW(&wc);
     debug_assert!(atom != 0);
 
+    let key = CURRENT_USER.create(APP_REG_KEY)?;
+    let window_pos_x = key.get_string(WINDOW_POS_X_KEY).ok();
+    let window_pos_y = key.get_string(WINDOW_POS_Y_KEY).ok();
+    let window_pos_x = window_pos_x.and_then(|s| s.parse().ok());
+    let window_pos_y = window_pos_y.and_then(|s| s.parse().ok());
+
     let hwnd = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_NOACTIVATE,
         window_class,
         PCWSTR::null(),
         WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,
-        100,
-        0,
+        window_pos_x.unwrap_or(100),
+        window_pos_y.unwrap_or(0),
         200,
         rect.bottom - rect.top,
         None,
