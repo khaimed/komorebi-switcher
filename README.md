@@ -1,14 +1,14 @@
 # komorebi-switcher
 
-Minimal workspaces switcher for the komorebi tiling window manager that works in the native Windows taskbar.
+A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into the Windows taskbar.
 
 ![Image showcasing komorebi switcher](.github/image.png)
 
 ## Usage
 
-- Left Click any workspace to switch to it
-- Shit + Left Click to start dragging the switcher around to adjust its position.
-- Alt + Left Click to close the switcher.
+- <kbd>Left Click</kbd> any workspace to switch to it
+- <kbd>Shit</kbd> + <kbd>Left Click</kbd> to start dragging the switcher around to adjust its position.
+- <kbd>Alt</kbd> + <kbd>Left Click</kbd> to close the switcher.
 
 ## Future plans
 
