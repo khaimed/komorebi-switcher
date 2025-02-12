@@ -213,8 +213,11 @@ impl EguiView for MainWindowView {
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        let mut visuals = egui::Visuals::default();
-        visuals.panel_fill = egui::Color32::TRANSPARENT;
+        let visuals = egui::Visuals {
+            panel_fill: egui::Color32::TRANSPARENT,
+            ..Default::default()
+        };
+
         ctx.set_visuals(visuals);
 
         let margin = egui::Margin::symmetric(1, 0);

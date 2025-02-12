@@ -1,6 +1,6 @@
 # komorebi-switcher
 
-A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into the Windows taskbar.
+A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into the Windows 10/11 taskbar.
 
 ![Image showcasing komorebi switcher](.github/image.png)
 

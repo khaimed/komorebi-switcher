@@ -1,6 +1,6 @@
 [package]
 name = "komorebi-switcher"
-description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into the Windows taskbar."
+description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into the Windows 10/11 taskbar."
 version = "0.1.0"
 edition = "2021"
 license = "MIT"

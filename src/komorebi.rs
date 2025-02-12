@@ -55,12 +55,10 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
         };
     };
 
-    for incoming in socket.incoming() {
-        let Ok(data) = incoming else { continue };
+    for incoming in socket.incoming().map_while(Result::ok) {
+        let reader = BufReader::new(incoming);
 
-        let reader = BufReader::new(data);
-
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(Result::ok) {
             let Ok(notification) = serde_json::from_str::<Notification>(&line) else {
                 continue;
             };
