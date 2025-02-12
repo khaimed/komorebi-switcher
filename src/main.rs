@@ -89,7 +89,7 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
     debug_assert!(atom != 0);
 
     let hwnd = CreateWindowExW(
-        WS_EX_LAYERED,
+        WS_EX_LAYERED | WS_EX_NOACTIVATE,
         window_class,
         PCWSTR::null(),
         WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,

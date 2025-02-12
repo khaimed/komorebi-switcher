@@ -32,6 +32,7 @@ impl App {
         attrs = attrs
             .with_decorations(false)
             .with_transparent(true)
+            .with_active(false)
             .with_class_name("komorebi-switcher::window")
             .with_undecorated_shadow(false)
             .with_clip_children(false);
