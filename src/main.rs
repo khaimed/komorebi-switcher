@@ -43,7 +43,7 @@ unsafe extern "system" fn wndproc_host(
     match msg {
         // Disable position changes in y direction
         WM_WINDOWPOSCHANGING => {
-            let window_pos = unsafe { &mut *(lparam.0 as *mut WINDOWPOS) };
+            let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
             window_pos.y = 0;
             return LRESULT(0);
         }
@@ -108,6 +108,16 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
     SetParent(hwnd, Some(taskbar_hwnd))?;
 
     SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
+
+    SetWindowPos(
+        hwnd,
+        Some(HWND_TOP),
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+    )?;
 
     Ok(hwnd)
 }
