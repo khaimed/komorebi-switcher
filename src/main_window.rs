@@ -159,11 +159,13 @@ impl MainWindowView {
             egui::Color32::GRAY
         };
 
+        let stroke_width = 1.5;
+
         style.visuals.widgets.inactive = egui::style::WidgetVisuals {
             bg_fill: fill_color,
             weak_bg_fill: fill_color,
             bg_stroke: egui::Stroke {
-                width: 1.,
+                width: stroke_width,
                 color: inactive_border_color,
             },
             ..style.visuals.widgets.hovered
@@ -173,7 +175,7 @@ impl MainWindowView {
             bg_fill: hover_color,
             weak_bg_fill: hover_color,
             bg_stroke: egui::Stroke {
-                width: 1.,
+                width: stroke_width,
                 color: active_border_color,
             },
             ..style.visuals.widgets.hovered
