@@ -8,6 +8,7 @@ Minimal workspaces switcher for the komorebi tiling window manager that works in
 
 - Left Click any workspace to switch to it
 - Shit + Left Click to start dragging the switcher around to adjust its position.
+- Alt + Left Click to close the switcher.
 
 ## Future plans
 

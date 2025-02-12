@@ -5,7 +5,7 @@ use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::{HWND, LPARAM, POINT, POINTS, RECT, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetCursorPos, PostMessageW, SetWindowPos, HTCAPTION, SWP_NOMOVE,
+    GetClientRect, GetCursorPos, PostMessageW, SetWindowPos, HTCAPTION, SWP_NOMOVE, WM_CLOSE,
     WM_NCLBUTTONDOWN,
 };
 use winit::dpi::PhysicalSize;
@@ -123,6 +123,18 @@ impl MainWindowView {
         Ok(())
     }
 
+    fn close_host(&self) -> anyhow::Result<()> {
+        unsafe {
+            PostMessageW(
+                Some(self.host),
+                WM_CLOSE,
+                WPARAM::default(),
+                LPARAM::default(),
+            )
+            .map_err(Into::into)
+        }
+    }
+
     fn workspace_button(
         workspace: &crate::komorebi::Workspace,
         ui: &mut egui::Ui,
@@ -177,6 +189,10 @@ impl MainWindowView {
     fn draw_workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
         if ui.input(|i| i.modifiers.shift && i.pointer.button_down(egui::PointerButton::Primary)) {
             let _ = self.start_host_dragging(ui);
+        }
+
+        if ui.input(|i| i.modifiers.alt && i.pointer.button_down(egui::PointerButton::Primary)) {
+            let _ = self.close_host();
         }
 
         ui.horizontal_centered(|ui| {
