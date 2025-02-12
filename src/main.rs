@@ -1,4 +1,4 @@
-use app::App;
+use app::{App, AppMessage};
 use utils::RGB;
 use windows::core::*;
 use windows::Win32::Foundation::*;
@@ -8,6 +8,7 @@ use winit::event_loop::EventLoop;
 
 mod _egui_glue;
 mod app;
+mod komorebi;
 mod main_window;
 mod utils;
 
@@ -103,12 +104,12 @@ unsafe fn create_host(hinstance: HMODULE) -> anyhow::Result<HWND> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let evl = EventLoop::new()?;
+    let evl = EventLoop::<AppMessage>::with_user_event().build()?;
 
     let hinstance = unsafe { GetModuleHandleW(None) }?;
     let host = unsafe { create_host(hinstance) }?;
 
-    let mut app = App::new(host);
+    let mut app = App::new(host, evl.create_proxy());
     evl.run_app(&mut app)?;
 
     Ok(())

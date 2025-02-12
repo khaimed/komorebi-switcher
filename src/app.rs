@@ -4,24 +4,31 @@ use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
-use winit::event_loop::ActiveEventLoop;
+use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
 use crate::_egui_glue::EguiWindow;
 
+pub enum AppMessage {
+    UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
+}
+
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
+    pub proxy: EventLoopProxy<AppMessage>,
     pub taskbar_host: HWND,
     pub windows: HashMap<WindowId, EguiWindow>,
 }
 
 impl App {
-    pub fn new(host: HWND) -> Self {
+    pub fn new(host: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
         let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+
         Self {
             wgpu_instance,
             taskbar_host: host,
             windows: Default::default(),
+            proxy,
         }
     }
 
@@ -34,7 +41,7 @@ impl App {
     }
 }
 
-impl ApplicationHandler<()> for App {
+impl ApplicationHandler<AppMessage> for App {
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if cause == StartCause::Init {
             self.create_main_window(event_loop)
@@ -43,6 +50,13 @@ impl ApplicationHandler<()> for App {
     }
 
     fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppMessage) {
+        for window in self.windows.values_mut() {
+            window.handle_app_message(&event);
+            window.request_redraw();
+        }
+    }
 
     fn window_event(
         &mut self,

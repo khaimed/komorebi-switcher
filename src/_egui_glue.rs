@@ -5,7 +5,13 @@ use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
+use crate::app::AppMessage;
+
 pub trait EguiView {
+    fn handle_app_message(&mut self, message: &AppMessage) {
+        let _ = message;
+    }
+
     fn update(&mut self, ctx: &egui::Context);
 }
 
@@ -43,6 +49,10 @@ impl EguiWindow {
 
     pub fn handle_resized(&mut self, size: PhysicalSize<u32>) {
         self.surface.handle_resized(size.width, size.height);
+    }
+
+    pub fn handle_app_message(&mut self, message: &AppMessage) {
+        self.view.handle_app_message(message);
     }
 }
 
