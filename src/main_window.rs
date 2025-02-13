@@ -22,10 +22,17 @@ use crate::komorebi::listen_for_workspaces;
 
 impl App {
     pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
+        log::info!("Creating main window");
+
         let mut attrs = WindowAttributes::default();
 
-        let (w, h) = self.host_size()?;
-        attrs = attrs.with_inner_size(PhysicalSize::new(w, h));
+        // get host width/height
+        let mut rect = RECT::default();
+        unsafe { GetClientRect(self.host, &mut rect) }?;
+        let width = rect.right - rect.left;
+        let heigth = rect.bottom - rect.top;
+
+        attrs = attrs.with_inner_size(PhysicalSize::new(width, heigth));
 
         let parent = unsafe { NonZero::new_unchecked(self.host.0 as _) };
         let parent = Win32WindowHandle::new(parent);
@@ -50,7 +57,7 @@ impl App {
 
         std::thread::spawn(move || listen_for_workspaces(proxy));
 
-        let window = EguiWindow::new(window, &self.wgpu_instance, state).unwrap();
+        let window = EguiWindow::new(window, &self.wgpu_instance, state)?;
 
         self.windows.insert(window.id(), window);
 
@@ -81,7 +88,7 @@ impl MainWindowView {
 
         let hwnd = window.window_handle()?;
         let RawWindowHandle::Win32(hwnd) = hwnd.as_raw() else {
-            unreachable!("Window handle must be win32")
+            anyhow::bail!("Window handle must be win32")
         };
         let hwnd = HWND(hwnd.hwnd.get() as _);
 
@@ -97,7 +104,9 @@ impl MainWindowView {
             accent_light2_color: None,
         };
 
-        let _ = view.update_system_accent();
+        if let Err(e) = view.update_system_accent() {
+            log::error!("Failed to get system accent: {e}");
+        }
 
         Ok(view)
     }
@@ -106,8 +115,8 @@ impl MainWindowView {
         let settings = UISettings::new()?;
 
         let color = settings.GetColorValue(UIColorType::AccentLight2)?;
-        self.accent_light2_color
-            .replace(egui::Color32::from_rgb(color.R, color.G, color.B));
+        let color = egui::Color32::from_rgb(color.R, color.G, color.B);
+        self.accent_light2_color.replace(color);
 
         Ok(())
     }
@@ -118,7 +127,7 @@ impl MainWindowView {
         Ok(rect)
     }
 
-    fn resize_host_to_rect(&mut self, rect: egui::Rect) {
+    fn resize_host_to_rect(&mut self, rect: egui::Rect) -> anyhow::Result<()> {
         let width = rect.width() as f64 + 2.0 /* default margin 1 on each side */;
         let width = self.window.scale_factor() * width;
         let width = width as i32;
@@ -127,7 +136,9 @@ impl MainWindowView {
             self.curr_width = width;
 
             if let Ok(rect) = self.host_rect() {
-                let _ = unsafe {
+                log::debug!("Resizing host to match content rect");
+
+                unsafe {
                     SetWindowPos(
                         self.host,
                         None,
@@ -136,10 +147,12 @@ impl MainWindowView {
                         width,
                         rect.bottom - rect.top,
                         SWP_NOMOVE,
-                    )
-                };
+                    )?;
+                }
             }
         }
+
+        Ok(())
     }
 
     fn focus_egui_window(&self) -> anyhow::Result<()> {
@@ -161,6 +174,8 @@ impl MainWindowView {
         if self.is_dragging {
             return Ok(());
         }
+
+        log::info!("Starting host window dragging");
 
         self.is_dragging = true;
 
@@ -209,14 +224,17 @@ impl MainWindowView {
 
     fn stop_host_dragging(&mut self) -> anyhow::Result<()> {
         if self.is_dragging {
+            log::info!("Stopping host window dragging");
+
             unsafe { ReleaseCapture()? };
             self.is_dragging = false;
         }
-
         Ok(())
     }
 
     fn close_host(&self) -> anyhow::Result<()> {
+        log::info!("Closing host window");
+
         unsafe {
             PostMessageW(
                 Some(self.host),
@@ -229,6 +247,8 @@ impl MainWindowView {
     }
 
     fn show_context_menu(&self) {
+        log::debug!("Showing context menu");
+
         let hwnd = self.host.0 as _;
         unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
     }
@@ -328,7 +348,7 @@ impl MainWindowView {
         ui.horizontal_centered(|ui| {
             for workspace in self.workspaces.iter() {
                 if self.workspace_button(workspace, ui).clicked() && !self.is_dragging {
-                    let _ = crate::komorebi::change_workspace(workspace.idx);
+                    crate::komorebi::change_workspace(workspace.idx);
                 }
             }
         })
@@ -354,54 +374,55 @@ impl EguiView for MainWindowView {
         &mut self,
         _event_loop: &ActiveEventLoop,
         event: winit::event::WindowEvent,
-    ) {
+    ) -> anyhow::Result<()> {
         match event {
             WindowEvent::CursorMoved { position, .. } if self.is_dragging => {
-                let _ = self.move_host(position);
+                self.move_host(position)?;
             }
 
-            _ if is_escape_key(&event) && self.is_dragging => {
-                let _ = self.stop_host_dragging();
+            e if is_escape_key(&e) && self.is_dragging => {
+                self.stop_host_dragging()?;
                 self.window.request_redraw();
             }
 
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn handle_app_message(&mut self, _event_loop: &ActiveEventLoop, message: &AppMessage) {
+    fn handle_app_message(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        message: &AppMessage,
+    ) -> anyhow::Result<()> {
         match message {
             AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
-
             AppMessage::MenuEvent(e) if e.id() == "move" => {
                 if self.start_host_dragging().is_err() {
-                    let _ = unsafe { ReleaseCapture() };
                     self.is_dragging = false;
+                    unsafe { ReleaseCapture()? }
                 }
             }
-
-            AppMessage::MenuEvent(e) if e.id() == "quit" => {
-                let _ = self.close_host();
-            }
-
-            AppMessage::SystemSettingsChanged => {
-                let _ = self.update_system_accent();
-            }
-
+            AppMessage::MenuEvent(e) if e.id() == "quit" => self.close_host()?,
+            AppMessage::SystemSettingsChanged => self.update_system_accent()?,
             _ => {}
         }
+
+        Ok(())
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        let mut visuals = egui::Visuals::default();
-
-        if !self.is_dragging {
-            visuals.panel_fill = egui::Color32::TRANSPARENT;
-        } else {
-            ctx.set_cursor_icon(egui::CursorIcon::ResizeColumn);
+        let visuals = egui::Visuals {
+            panel_fill: egui::Color32::TRANSPARENT,
+            ..Default::default()
         };
 
         ctx.set_visuals(visuals);
+
+        if self.is_dragging {
+            ctx.set_cursor_icon(egui::CursorIcon::ResizeColumn);
+        };
 
         let margin = egui::Margin::symmetric(1, 0);
 
@@ -413,7 +434,9 @@ impl EguiView for MainWindowView {
 
             let response = self.workspaces_row(ui);
 
-            self.resize_host_to_rect(response.response.rect);
+            if let Err(e) = self.resize_host_to_rect(response.response.rect) {
+                log::error!("Failed to resize host to rect: {e}");
+            }
         });
     }
 }

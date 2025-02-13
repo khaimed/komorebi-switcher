@@ -22,15 +22,20 @@ unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL 
     let rect = lparam.0 as *const RECT;
     let rect = *rect;
 
-    let _ = SetWindowPos(
+    let width = rect.right - rect.left;
+    let height = rect.bottom - rect.top;
+
+    if let Err(e) = SetWindowPos(
         hwnd,
         None,
         0,
         0,
-        rect.right - rect.left,
-        rect.bottom - rect.top,
+        width,
+        height,
         SWP_NOMOVE | SWP_FRAMECHANGED,
-    );
+    ) {
+        log::error!("Failed to resize child to match host: {e}")
+    }
 
     true.into()
 }
@@ -66,8 +71,11 @@ unsafe extern "system" fn wndproc_host(
 
             let key = CURRENT_USER.create(APP_REG_KEY);
             if let Ok(key) = key {
-                let _ = key.set_string(WINDOW_POS_X_KEY, &window_pos.x.to_string());
-                let _ = key.set_string(WINDOW_POS_Y_KEY, &window_pos.y.to_string());
+                let x = window_pos.x;
+                let y = window_pos.y;
+                log::debug!("Storing window position into registry {x},{y}");
+                let _ = key.set_string(WINDOW_POS_X_KEY, &x.to_string());
+                let _ = key.set_string(WINDOW_POS_Y_KEY, &y.to_string());
             }
         }
 
@@ -87,7 +95,9 @@ unsafe extern "system" fn wndproc_host(
         WM_SETTINGCHANGE => {
             let proxy = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             let proxy = &*(proxy as *const EventLoopProxy<AppMessage>);
-            let _ = proxy.send_event(AppMessage::SystemSettingsChanged);
+            if let Err(e) = proxy.send_event(AppMessage::SystemSettingsChanged) {
+                log::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
+            }
         }
 
         // Close children when this host is closed
@@ -127,6 +137,7 @@ unsafe fn create_host(
     let atom = RegisterClassW(&wc);
     debug_assert!(atom != 0);
 
+    log::debug!("Loading window position from registry");
     let key = CURRENT_USER.create(APP_REG_KEY)?;
     let window_pos_x = key.get_string(WINDOW_POS_X_KEY).ok();
     let window_pos_y = key.get_string(WINDOW_POS_Y_KEY).ok();
@@ -138,7 +149,7 @@ unsafe fn create_host(
         window_class,
         PCWSTR::null(),
         WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,
-        window_pos_x.unwrap_or(100),
+        window_pos_x.unwrap_or(16),
         window_pos_y.unwrap_or(0),
         200,
         rect.bottom - rect.top,
@@ -165,7 +176,7 @@ unsafe fn create_host(
     Ok(hwnd)
 }
 
-fn main() -> anyhow::Result<()> {
+fn run() -> anyhow::Result<()> {
     let evl = EventLoop::<AppMessage>::with_user_event().build()?;
 
     let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
@@ -175,11 +186,22 @@ fn main() -> anyhow::Result<()> {
 
     let proxy = evl.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |e| {
-        let _ = proxy.send_event(AppMessage::MenuEvent(e));
+        if let Err(e) = proxy.send_event(AppMessage::MenuEvent(e)) {
+            log::error!("Failed to send `AppMessage::MenuEvent`: {e}")
+        }
     }));
 
     let mut app = App::new(taskbar_hwnd, host, evl.create_proxy());
     evl.run_app(&mut app)?;
 
     Ok(())
+}
+
+fn main() {
+    env_logger::init();
+
+    if let Err(e) = run() {
+        log::error!("{e}");
+        std::process::exit(1);
+    }
 }

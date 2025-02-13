@@ -114,20 +114,22 @@ struct KNotification {
 
 const KOMOREBI_SOCK: &str = "komorebi.sock";
 
-fn send_message(message: &KSocketMessage) -> std::io::Result<()> {
+fn send_message(message: &KSocketMessage) -> anyhow::Result<()> {
     let socket = dirs::data_local_dir()
-        .expect("there is no local data directory")
+        .context("there is no local data directory")?
         .join("komorebi")
         .join(KOMOREBI_SOCK);
 
     let mut stream = UnixStream::connect(socket)?;
     stream.set_write_timeout(Some(std::time::Duration::from_secs(1)))?;
-    stream.write_all(serde_json::to_string(message)?.as_bytes())
+    stream.write_all(serde_json::to_string(message)?.as_bytes())?;
+
+    Ok(())
 }
 
-fn send_query(message: &KSocketMessage) -> std::io::Result<String> {
+fn send_query(message: &KSocketMessage) -> anyhow::Result<String> {
     let socket = dirs::data_local_dir()
-        .expect("there is no local data directory")
+        .context("there is no local data directory")?
         .join("komorebi")
         .join(KOMOREBI_SOCK);
 
@@ -144,9 +146,9 @@ fn send_query(message: &KSocketMessage) -> std::io::Result<String> {
     Ok(response)
 }
 
-fn subscribe(name: &str) -> std::io::Result<UnixListener> {
+fn subscribe(name: &str) -> anyhow::Result<UnixListener> {
     let socket = dirs::data_local_dir()
-        .expect("there is no local data directory")
+        .context("there is no local data directory")?
         .join("komorebi")
         .join(name);
 
@@ -155,7 +157,7 @@ fn subscribe(name: &str) -> std::io::Result<UnixListener> {
         Err(error) => match error.kind() {
             std::io::ErrorKind::NotFound => {}
             _ => {
-                return Err(error);
+                return Err(error.into());
             }
         },
     };
@@ -176,7 +178,7 @@ pub struct Workspace {
 }
 
 fn workspaces_from_state(state: KState) -> anyhow::Result<Vec<Workspace>> {
-    let monitor = state.monitors.focused().context("No focused monintor")?;
+    let monitor = state.monitors.focused().context("No focused monintor?")?;
 
     let focused_workspace = monitor.workspaces.focused_idx();
 
@@ -195,13 +197,19 @@ fn workspaces_from_state(state: KState) -> anyhow::Result<Vec<Workspace>> {
 }
 
 pub fn read_workspaces() -> anyhow::Result<Vec<Workspace>> {
+    log::info!("Reading komorebi workspaces");
+
     let response = send_query(&KSocketMessage::State)?;
     let state: KState = serde_json::from_str(&response)?;
     workspaces_from_state(state)
 }
 
-pub fn change_workspace(idx: usize) -> anyhow::Result<()> {
-    send_message(&KSocketMessage::FocusWorkspaceNumber(idx)).map_err(Into::into)
+pub fn change_workspace(idx: usize) {
+    log::info!("Changing komorebi workspace to {idx}");
+
+    if let Err(e) = send_message(&KSocketMessage::FocusWorkspaceNumber(idx)) {
+        log::error!("Failed to change workspace: {e}")
+    }
 }
 
 const SOCK_NAME: &str = "komorebi-switcher.sock";
@@ -214,16 +222,30 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
         };
     };
 
+    log::info!("Listenting for messages from komorebi");
+
     for incoming in socket.incoming().map_while(Result::ok) {
+        log::debug!("Received a message from komorebi");
+
         let reader = BufReader::new(incoming);
 
         for line in reader.lines().map_while(Result::ok) {
+            log::trace!("Reading line from komorebi message: {line}");
+
             let Ok(notification) = serde_json::from_str::<KNotification>(&line) else {
                 continue;
             };
 
-            if let Ok(new_workspaces) = workspaces_from_state(notification.state) {
-                let _ = proxy.send_event(AppMessage::UpdateWorkspaces(new_workspaces));
+            let new_workspaces = match workspaces_from_state(notification.state) {
+                Ok(new_workspaces) => new_workspaces,
+                Err(e) => {
+                    log::error!("Failed to read workspaces from state: {e}");
+                    continue;
+                }
+            };
+
+            if let Err(e) = proxy.send_event(AppMessage::UpdateWorkspaces(new_workspaces)) {
+                log::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
             }
         }
     }

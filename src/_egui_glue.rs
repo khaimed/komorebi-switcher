@@ -18,14 +18,24 @@ use winit::window::Window;
 use crate::app::AppMessage;
 
 pub trait EguiView {
-    fn handle_app_message(&mut self, event_loop: &ActiveEventLoop, message: &AppMessage) {
+    fn handle_app_message(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        message: &AppMessage,
+    ) -> anyhow::Result<()> {
         let _ = event_loop;
         let _ = message;
+        Ok(())
     }
 
-    fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+    fn handle_window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        event: WindowEvent,
+    ) -> anyhow::Result<()> {
         let _ = event_loop;
         let _ = event;
+        Ok(())
     }
 
     fn update(&mut self, ctx: &egui::Context);
@@ -67,11 +77,15 @@ impl EguiWindow {
         self.surface.handle_resized(size.width, size.height);
     }
 
-    pub fn handle_window_event(&mut self, event_loop: &ActiveEventLoop, event: WindowEvent) {
+    pub fn handle_window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        event: WindowEvent,
+    ) -> anyhow::Result<()> {
         let resposne = self.handle_input(&event);
 
         if resposne.repaint {
-            self.handle_redraw();
+            self.handle_redraw()?;
         }
 
         match event {
@@ -85,13 +99,13 @@ impl EguiWindow {
             _ => {}
         }
 
-        self.view.handle_window_event(event_loop, event);
+        self.view.handle_window_event(event_loop, event)
     }
 }
 
 impl EguiWindow {
-    pub fn handle_redraw(&mut self) {
-        self.surface.handle_redraw(&self.window, self.view.as_mut());
+    pub fn handle_redraw(&mut self) -> anyhow::Result<()> {
+        self.surface.handle_redraw(&self.window, self.view.as_mut())
     }
 }
 
@@ -201,28 +215,13 @@ impl SurfaceState {
         &mut self,
         window: &Arc<Window>,
         egui_view: &mut (impl EguiView + ?Sized),
-    ) {
+    ) -> anyhow::Result<()> {
         let screen_descriptor = egui_wgpu::ScreenDescriptor {
             size_in_pixels: [self.surface_config.width, self.surface_config.height],
             pixels_per_point: window.scale_factor() as f32 * self.scale_factor,
         };
 
-        let surface_texture = self.surface.get_current_texture();
-
-        match surface_texture {
-            Err(wgpu::SurfaceError::Outdated) => {
-                // Ignoring outdated to allow resizing and minimization
-                eprintln!("wgpu surface outdated");
-                return;
-            }
-            Err(_) => {
-                eprintln!("Failed to acquire next swap chain texture");
-                return;
-            }
-            Ok(_) => {}
-        };
-
-        let surface_texture = surface_texture.unwrap();
+        let surface_texture = self.surface.get_current_texture()?;
 
         let surface_view = surface_texture
             .texture
@@ -251,6 +250,8 @@ impl SurfaceState {
 
         self.queue.submit(Some(encoder.finish()));
         surface_texture.present();
+
+        Ok(())
     }
 }
 
@@ -390,6 +391,7 @@ impl Dx12Surface {
                 None,
                 None,
             )
+            // SAFETY: D3D11CreateDevice succeded, device is Some
             .map(|()| device.unwrap())?
         };
 

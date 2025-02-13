@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
+use windows::Win32::Foundation::HWND;
 use winit::application::ApplicationHandler;
 use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
@@ -38,21 +37,15 @@ impl App {
             proxy,
         }
     }
-
-    pub fn host_size(&self) -> anyhow::Result<(u32, u32)> {
-        let mut rect = RECT::default();
-        unsafe { GetClientRect(self.host, &mut rect) }?;
-        let w = rect.right - rect.left;
-        let h = rect.bottom - rect.top;
-        Ok((w as u32, h as u32))
-    }
 }
 
 impl ApplicationHandler<AppMessage> for App {
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if cause == StartCause::Init {
-            self.create_main_window(event_loop)
-                .expect("Failed to create main window");
+            self.create_main_window(event_loop).unwrap_or_else(|e| {
+                log::error!("Failed to create main window: {e}");
+                std::process::exit(1);
+            });
         }
     }
 
@@ -60,7 +53,10 @@ impl ApplicationHandler<AppMessage> for App {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
-            window.view.handle_app_message(event_loop, &event);
+            if let Err(e) = window.view.handle_app_message(event_loop, &event) {
+                log::error!("Error while handling AppMessage: {e}")
+            }
+
             window.request_redraw();
         }
     }
@@ -72,7 +68,9 @@ impl ApplicationHandler<AppMessage> for App {
         event: WindowEvent,
     ) {
         if event == WindowEvent::CloseRequested {
+            log::info!("Closing main window");
             self.windows.remove(&window_id);
+            log::info!("Exiting event loop");
             event_loop.exit();
         }
 
@@ -80,6 +78,8 @@ impl ApplicationHandler<AppMessage> for App {
             return;
         };
 
-        window.handle_window_event(event_loop, event);
+        if let Err(e) = window.handle_window_event(event_loop, event) {
+            log::error!("Error while handing `WindowEevent`: {e}")
+        }
     }
 }
