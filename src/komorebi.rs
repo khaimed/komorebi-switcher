@@ -227,26 +227,29 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
     for incoming in socket.incoming().map_while(Result::ok) {
         log::debug!("Received a message from komorebi");
 
-        let reader = BufReader::new(incoming);
+        let mut reader = BufReader::new(incoming);
 
-        for line in reader.lines().map_while(Result::ok) {
-            log::trace!("Reading line from komorebi message: {line}");
+        let mut message = String::new();
+        if reader.read_line(&mut message).is_err() {
+            continue;
+        };
 
-            let Ok(notification) = serde_json::from_str::<KNotification>(&line) else {
+        log::trace!("Read a message from komorebi: {message}");
+
+        let Ok(notification) = serde_json::from_str::<KNotification>(&message) else {
+            continue;
+        };
+
+        let new_workspaces = match workspaces_from_state(notification.state) {
+            Ok(new_workspaces) => new_workspaces,
+            Err(e) => {
+                log::error!("Failed to read workspaces from state: {e}");
                 continue;
-            };
-
-            let new_workspaces = match workspaces_from_state(notification.state) {
-                Ok(new_workspaces) => new_workspaces,
-                Err(e) => {
-                    log::error!("Failed to read workspaces from state: {e}");
-                    continue;
-                }
-            };
-
-            if let Err(e) = proxy.send_event(AppMessage::UpdateWorkspaces(new_workspaces)) {
-                log::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
             }
+        };
+
+        if let Err(e) = proxy.send_event(AppMessage::UpdateWorkspaces(new_workspaces)) {
+            log::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
         }
     }
 }

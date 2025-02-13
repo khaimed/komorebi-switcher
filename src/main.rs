@@ -198,7 +198,8 @@ fn run() -> anyhow::Result<()> {
 }
 
 fn main() {
-    env_logger::init();
+    let env = env_logger::Env::default().default_filter_or("komorebi_switcher=info");
+    let _ = env_logger::Builder::from_env(env).try_init();
 
     if let Err(e) = run() {
         log::error!("{e}");
