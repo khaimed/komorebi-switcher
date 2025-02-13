@@ -18,6 +18,11 @@ const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
 const WINDOW_POS_X_KEY: &str = "window-pos-x";
 const WINDOW_POS_Y_KEY: &str = "window-pos-y";
 
+struct WndProcUserData {
+    proxy: EventLoopProxy<AppMessage>,
+    taskbar_hwnd: HWND,
+}
+
 unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL {
     let rect = lparam.0 as *const RECT;
     let rect = *rect;
@@ -55,14 +60,23 @@ unsafe extern "system" fn wndproc_host(
         // Initialize GWLP_USERDATA
         WM_CREATE => {
             let create_struct = &*(lparam.0 as *const CREATESTRUCTW);
-            let proxy = create_struct.lpCreateParams as *const EventLoopProxy<AppMessage>;
-            SetWindowLongPtrW(hwnd, GWLP_USERDATA, proxy as _);
+            let userdata = create_struct.lpCreateParams as *const WndProcUserData;
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, userdata as _);
         }
 
         // Disable position changes in y direction
+        // and clamp x direction to stay visible in taskbar
         WM_WINDOWPOSCHANGING => {
             let window_pos = &mut *(lparam.0 as *mut WINDOWPOS);
             window_pos.y = 0;
+
+            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let userdata = &*(userdata as *const WndProcUserData);
+
+            let mut rect = RECT::default();
+            if GetClientRect(userdata.taskbar_hwnd, &mut rect).is_ok() {
+                window_pos.x = window_pos.x.max(0).min(rect.right - window_pos.cx);
+            }
         }
 
         // Save host position to be loaded on startup
@@ -93,19 +107,19 @@ unsafe extern "system" fn wndproc_host(
 
         // Notify winit app to update system settings
         WM_SETTINGCHANGE => {
-            let proxy = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let proxy = &*(proxy as *const EventLoopProxy<AppMessage>);
-            if let Err(e) = proxy.send_event(AppMessage::SystemSettingsChanged) {
+            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let userdata = &*(userdata as *const WndProcUserData);
+            if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
                 log::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
             }
         }
 
         // Close children when this host is closed
         WM_CLOSE => {
-            // Drop winit proxy
-            let proxy = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-            let proxy = proxy as *mut EventLoopProxy<AppMessage>;
-            drop(Box::from_raw(proxy));
+            // Drop userdata
+            let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+            let userdata = userdata as *mut WndProcUserData;
+            drop(Box::from_raw(userdata));
 
             let _ = EnumChildWindows(Some(hwnd), Some(enum_child_close), LPARAM::default());
         }
@@ -144,6 +158,11 @@ unsafe fn create_host(
     let window_pos_x = window_pos_x.and_then(|s| s.parse().ok());
     let window_pos_y = window_pos_y.and_then(|s| s.parse().ok());
 
+    let userdata = WndProcUserData {
+        proxy,
+        taskbar_hwnd,
+    };
+
     let hwnd = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
         window_class,
@@ -156,7 +175,7 @@ unsafe fn create_host(
         None,
         None,
         None,
-        Some(Box::into_raw(Box::new(proxy)) as _),
+        Some(Box::into_raw(Box::new(userdata)) as _),
     )?;
 
     SetParent(hwnd, Some(taskbar_hwnd))?;

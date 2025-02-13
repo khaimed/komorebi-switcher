@@ -318,8 +318,10 @@ impl MainWindowView {
     }
 
     fn transparent_panel(ctx: &egui::Context) -> egui::CentralPanel {
-        let mut visuals = egui::Visuals::default();
-        visuals.panel_fill = egui::Color32::TRANSPARENT;
+        let visuals = egui::Visuals {
+            panel_fill: egui::Color32::TRANSPARENT,
+            ..Default::default()
+        };
         ctx.set_visuals(visuals);
 
         let margin = egui::Margin::symmetric(1, 0);
