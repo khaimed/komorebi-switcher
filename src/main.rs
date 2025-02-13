@@ -191,7 +191,7 @@ fn run() -> anyhow::Result<()> {
         }
     }));
 
-    let mut app = App::new(taskbar_hwnd, host, evl.create_proxy());
+    let mut app = App::new(host, evl.create_proxy());
     evl.run_app(&mut app)?;
 
     Ok(())
