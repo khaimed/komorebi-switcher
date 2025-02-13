@@ -6,7 +6,7 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
-use crate::_egui_glue::EguiWindow;
+use crate::egui_glue::EguiWindow;
 
 pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),

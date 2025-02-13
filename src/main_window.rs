@@ -16,8 +16,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
-use crate::_egui_glue::{EguiView, EguiWindow};
 use crate::app::{App, AppMessage};
+use crate::egui_glue::{EguiView, EguiWindow};
 use crate::komorebi::listen_for_workspaces;
 
 impl App {

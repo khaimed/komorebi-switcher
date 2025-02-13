@@ -9,8 +9,8 @@ use winit::event_loop::{EventLoop, EventLoopProxy};
 
 use crate::app::{App, AppMessage};
 
-mod _egui_glue;
 mod app;
+mod egui_glue;
 mod komorebi;
 mod main_window;
 
