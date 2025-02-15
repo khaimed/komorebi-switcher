@@ -139,10 +139,11 @@ unsafe extern "system" fn wndproc_host(
 }
 
 unsafe fn create_host(
-    hinstance: HMODULE,
     taskbar_hwnd: HWND,
     proxy: EventLoopProxy<AppMessage>,
 ) -> anyhow::Result<HWND> {
+    let hinstance = unsafe { GetModuleHandleW(None) }?;
+
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
@@ -172,7 +173,7 @@ unsafe fn create_host(
     };
 
     let hwnd = CreateWindowExW(
-        WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
+        WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
         window_class,
         PCWSTR::null(),
         WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,
@@ -187,8 +188,6 @@ unsafe fn create_host(
     )?;
 
     SetParent(hwnd, Some(taskbar_hwnd))?;
-
-    SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_COLORKEY)?;
 
     SetWindowPos(
         hwnd,
@@ -208,8 +207,7 @@ fn run() -> anyhow::Result<()> {
 
     let taskbar_hwnd = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }?;
 
-    let hinstance = unsafe { GetModuleHandleW(None) }?;
-    let host = unsafe { create_host(hinstance, taskbar_hwnd, evl.create_proxy()) }?;
+    let host = unsafe { create_host(taskbar_hwnd, evl.create_proxy()) }?;
 
     let proxy = evl.create_proxy();
     muda::MenuEvent::set_event_handler(Some(move |e| {
