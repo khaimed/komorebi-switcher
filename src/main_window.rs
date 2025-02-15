@@ -16,6 +16,7 @@ use winit::window::{Window, WindowAttributes};
 use crate::app::{App, AppMessage};
 use crate::egui_glue::{EguiView, EguiWindow};
 use crate::komorebi::listen_for_workspaces;
+use crate::widgets::WorkspaceButton;
 
 impl App {
     pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
@@ -224,12 +225,6 @@ impl MainWindowView {
         unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
     }
 
-    fn is_dark_mode(&self, ui: &egui::Ui) -> bool {
-        self.forgreound_color
-            .map(|c| c == egui::Color32::WHITE)
-            .unwrap_or_else(|| ui.visuals().dark_mode)
-    }
-
     fn is_taskbar_on_top(&self) -> bool {
         self.host_window_rect()
             .map(|r| {
@@ -240,93 +235,18 @@ impl MainWindowView {
             .unwrap_or(false)
     }
 
-    fn workspace_button(
-        &self,
-        workspace: &crate::komorebi::Workspace,
-        ui: &mut egui::Ui,
-    ) -> egui::Response {
-        const RADIUS: f32 = 4.0;
-        const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
-        const LINE_FOCUSED_WIDTH: f32 = 15.0;
-        const LINE_NOTEMPTY_WIDTH: f32 = 6.0;
-        const LINE_HEIGHT: f32 = 3.5;
-        const TEXT_PADDING: egui::Vec2 = egui::vec2(16.0, 8.0);
+    fn is_system_dark_mode(&self) -> bool {
+        self.forgreound_color
+            .map(|c| c == egui::Color32::WHITE)
+            .unwrap_or(false)
+    }
 
-        let dark_mode = self.is_dark_mode(ui);
-
-        let font_id = egui::FontId::default();
-        let text_color = self.forgreound_color.unwrap_or(if dark_mode {
-            egui::Color32::WHITE
+    fn line_focused_color(&self) -> Option<egui::Color32> {
+        if self.is_system_dark_mode() {
+            self.accent_light2_color
         } else {
-            egui::Color32::BLACK
-        });
-
-        let text = workspace.name.clone();
-        let text_galley = ui
-            .painter()
-            .layout_no_wrap(text, font_id.clone(), text_color);
-
-        let size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
-
-        let (rect, response) = ui.allocate_at_least(size, egui::Sense::CLICK | egui::Sense::HOVER);
-
-        let painter = ui.painter();
-
-        if response.hovered() || workspace.focused {
-            let color = if dark_mode {
-                egui::Color32::from_rgba_premultiplied(15, 15, 15, 3)
-            } else {
-                egui::Color32::from_rgba_premultiplied(30, 30, 30, 3)
-            };
-
-            painter.rect_filled(rect, RADIUS, color);
+            self.accent_color
         }
-
-        let line_width = if workspace.focused {
-            LINE_FOCUSED_WIDTH
-        } else {
-            LINE_NOTEMPTY_WIDTH
-        };
-
-        let x = rect.min.x + rect.width() / 2.0 - line_width / 2.0;
-
-        let mut line_rect = rect.with_min_x(x).with_max_x(x + line_width);
-
-        if self.is_taskbar_on_top() {
-            line_rect = line_rect.with_max_y(rect.min.y + LINE_HEIGHT);
-        } else {
-            line_rect = line_rect.with_min_y(rect.max.y - LINE_HEIGHT);
-        };
-
-        if workspace.focused {
-            let color = if dark_mode {
-                self.accent_light2_color
-            } else {
-                self.accent_color
-            };
-
-            let color = color.unwrap_or(egui::Color32::CYAN);
-
-            painter.rect_filled(line_rect, RADIUS, color);
-        } else if !workspace.is_empty {
-            let color = if dark_mode {
-                egui::Color32::from_rgba_unmultiplied(180, 173, 170, 125)
-            } else {
-                egui::Color32::from_rgba_unmultiplied(31, 31, 31, 150)
-            };
-
-            painter.rect_filled(line_rect, RADIUS, color);
-        }
-
-        painter.text(
-            rect.center(),
-            egui::Align2::CENTER_CENTER,
-            &workspace.name,
-            font_id,
-            text_color,
-        );
-
-        response
     }
 
     fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
@@ -347,8 +267,15 @@ impl MainWindowView {
         ui.horizontal_centered(|ui| {
             let spacing = ui.style().spacing.item_spacing;
             ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
+
             for workspace in self.workspaces.iter() {
-                if self.workspace_button(workspace, ui).clicked() && !self.is_dragging {
+                let btn = WorkspaceButton::new(workspace)
+                    .dark_mode(Some(self.is_system_dark_mode()))
+                    .line_focused_color_opt(self.line_focused_color())
+                    .text_color_opt(self.forgreound_color)
+                    .line_on_top(self.is_taskbar_on_top());
+
+                if ui.add(btn).clicked() && !self.is_dragging {
                     crate::komorebi::change_workspace(workspace.idx);
                 }
             }

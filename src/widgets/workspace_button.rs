@@ -1,0 +1,138 @@
+use crate::komorebi::Workspace;
+
+pub struct WorkspaceButton<'a> {
+    workspace: &'a Workspace,
+    text_color: Option<egui::Color32>,
+    line_on_top: bool,
+    line_focused_color: Option<egui::Color32>,
+    dark_mode: Option<bool>,
+}
+
+impl<'a> WorkspaceButton<'a> {
+    pub fn new(workspace: &'a Workspace) -> Self {
+        Self {
+            workspace,
+            text_color: None,
+            line_on_top: false,
+            line_focused_color: None,
+            dark_mode: None,
+        }
+    }
+
+    pub fn dark_mode(mut self, dark_mode: Option<bool>) -> Self {
+        self.dark_mode = dark_mode;
+        self
+    }
+
+    // pub fn text_color(mut self, olor: egui::Color32) -> Self {
+    //     self.text_color.replace(color);
+    //     self
+    // }
+
+    pub fn text_color_opt(mut self, color: Option<egui::Color32>) -> Self {
+        self.text_color = color;
+        self
+    }
+
+    pub fn line_on_top(mut self, line_on_top: bool) -> Self {
+        self.line_on_top = line_on_top;
+        self
+    }
+
+    // pub fn line_focused_color(mut self, color: egui::Color32) -> Self {
+    //     self.line_focused_color.replace(color);
+    //     self
+    // }
+
+    pub fn line_focused_color_opt(mut self, color: Option<egui::Color32>) -> Self {
+        self.line_focused_color = color;
+        self
+    }
+}
+
+impl egui::Widget for WorkspaceButton<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        const RADIUS: f32 = 4.0;
+        const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
+        const LINE_FOCUSED_WIDTH: f32 = 15.0;
+        const LINE_NOTEMPTY_WIDTH: f32 = 6.0;
+        const LINE_HEIGHT: f32 = 3.5;
+        const TEXT_PADDING: egui::Vec2 = egui::vec2(16.0, 8.0);
+
+        let dark_mode = self.dark_mode.unwrap_or_else(|| ui.visuals().dark_mode);
+
+        let font_id = egui::FontId::default();
+        let text_color = self.text_color.unwrap_or(if dark_mode {
+            egui::Color32::WHITE
+        } else {
+            egui::Color32::BLACK
+        });
+
+        let text = self.workspace.name.clone();
+        let text_galley = ui
+            .painter()
+            .layout_no_wrap(text, font_id.clone(), text_color);
+
+        let size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
+
+        let (rect, response) = ui.allocate_at_least(size, egui::Sense::CLICK | egui::Sense::HOVER);
+
+        let painter = ui.painter();
+
+        if response.hovered() || self.workspace.focused {
+            let color = if dark_mode {
+                egui::Color32::from_rgba_premultiplied(15, 15, 15, 3)
+            } else {
+                egui::Color32::from_rgba_premultiplied(30, 30, 30, 3)
+            };
+
+            painter.rect_filled(rect, RADIUS, color);
+        }
+
+        let line_width = if self.workspace.focused {
+            LINE_FOCUSED_WIDTH
+        } else {
+            LINE_NOTEMPTY_WIDTH
+        };
+
+        let x = rect.min.x + rect.width() / 2.0 - line_width / 2.0;
+
+        let mut line_rect = rect.with_min_x(x).with_max_x(x + line_width);
+
+        if self.line_on_top {
+            line_rect = line_rect.with_max_y(rect.min.y + LINE_HEIGHT);
+        } else {
+            line_rect = line_rect.with_min_y(rect.max.y - LINE_HEIGHT);
+        };
+
+        if self.workspace.focused {
+            let color = self.line_focused_color.unwrap_or(egui::Color32::CYAN);
+
+            painter.rect_filled(line_rect, RADIUS, color);
+        } else if !self.workspace.is_empty {
+            let color = if dark_mode {
+                egui::Color32::from_rgba_unmultiplied(180, 173, 170, 125)
+            } else {
+                egui::Color32::from_rgba_unmultiplied(31, 31, 31, 150)
+            };
+
+            painter.rect_filled(line_rect, RADIUS, color);
+        }
+
+        let text_color = if response.hovered() || self.workspace.focused {
+            text_color
+        } else {
+            text_color.gamma_multiply(0.75)
+        };
+
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            &self.workspace.name,
+            font_id,
+            text_color,
+        );
+
+        response
+    }
+}

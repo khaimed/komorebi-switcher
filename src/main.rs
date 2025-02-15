@@ -13,6 +13,7 @@ mod app;
 mod egui_glue;
 mod komorebi;
 mod main_window;
+mod widgets;
 
 const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
 const WINDOW_POS_X_KEY: &str = "window-pos-x";
