@@ -169,7 +169,7 @@ pub unsafe fn create_host(
         WS_EX_NOACTIVATE | WS_EX_NOREDIRECTIONBITMAP,
         window_class,
         PCWSTR::null(),
-        WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS,
+        WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS,
         window_pos_x.unwrap_or(16),
         window_pos_y.unwrap_or(0),
         200,
