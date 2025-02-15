@@ -87,9 +87,16 @@ unsafe extern "system" fn wndproc_host(
             if let Ok(key) = key {
                 let x = window_pos.x;
                 let y = window_pos.y;
+
                 log::debug!("Storing window position into registry {x},{y}");
-                let _ = key.set_string(WINDOW_POS_X_KEY, &x.to_string());
-                let _ = key.set_string(WINDOW_POS_Y_KEY, &y.to_string());
+
+                if let Err(e) = key.set_string(WINDOW_POS_X_KEY, &x.to_string()) {
+                    log::error!("Failed to store window pos x into registry: {e}")
+                }
+
+                if let Err(e) = key.set_string(WINDOW_POS_Y_KEY, &y.to_string()) {
+                    log::error!("Failed to store window pos y into registry: {e}")
+                }
             }
         }
 

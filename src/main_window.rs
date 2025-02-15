@@ -120,9 +120,15 @@ impl MainWindowView {
         Ok(())
     }
 
-    fn host_rect(&self) -> anyhow::Result<RECT> {
+    fn host_client_rect(&self) -> anyhow::Result<RECT> {
         let mut rect = RECT::default();
         unsafe { GetClientRect(self.host, &mut rect) }?;
+        Ok(rect)
+    }
+
+    fn host_window_rect(&self) -> anyhow::Result<RECT> {
+        let mut rect = RECT::default();
+        unsafe { GetWindowRect(self.host, &mut rect) }?;
         Ok(rect)
     }
 
@@ -134,7 +140,7 @@ impl MainWindowView {
         if width != self.curr_width {
             self.curr_width = width;
 
-            if let Ok(rect) = self.host_rect() {
+            if let Ok(rect) = self.host_client_rect() {
                 log::debug!("Resizing host to match content rect");
 
                 unsafe {
@@ -157,7 +163,7 @@ impl MainWindowView {
     fn start_host_dragging(&mut self) -> anyhow::Result<()> {
         self.is_dragging = true;
 
-        let rect = self.host_rect()?;
+        let rect = self.host_client_rect()?;
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
 
@@ -224,6 +230,16 @@ impl MainWindowView {
             .unwrap_or_else(|| ui.visuals().dark_mode)
     }
 
+    fn is_taskbar_on_top(&self) -> bool {
+        self.host_window_rect()
+            .map(|r| {
+                let current_monitor = self.window.current_monitor();
+                let y = current_monitor.map(|m| m.position().y).unwrap_or(0);
+                r.top == y
+            })
+            .unwrap_or(false)
+    }
+
     fn workspace_button(
         &self,
         workspace: &crate::komorebi::Workspace,
@@ -272,9 +288,15 @@ impl MainWindowView {
             LINE_NOTEMPTY_WIDTH
         };
 
-        let y = rect.max.y - LINE_HEIGHT;
         let x = rect.min.x + rect.width() / 2.0 - line_width / 2.0;
-        let line_rect = rect.with_min_y(y).with_min_x(x).with_max_x(x + line_width);
+
+        let mut line_rect = rect.with_min_x(x).with_max_x(x + line_width);
+
+        if self.is_taskbar_on_top() {
+            line_rect = line_rect.with_max_y(rect.min.y + LINE_HEIGHT);
+        } else {
+            line_rect = line_rect.with_min_y(rect.max.y - LINE_HEIGHT);
+        };
 
         if workspace.focused {
             let color = if dark_mode {
@@ -282,6 +304,7 @@ impl MainWindowView {
             } else {
                 self.accent_color
             };
+
             let color = color.unwrap_or(egui::Color32::CYAN);
 
             painter.rect_filled(line_rect, RADIUS, color);
@@ -295,9 +318,8 @@ impl MainWindowView {
             painter.rect_filled(line_rect, RADIUS, color);
         }
 
-        let center = rect.min + (rect.max - rect.min) / 2.0;
         painter.text(
-            center,
+            rect.center(),
             egui::Align2::CENTER_CENTER,
             &workspace.name,
             font_id,
