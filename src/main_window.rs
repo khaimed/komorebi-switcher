@@ -70,6 +70,8 @@ pub struct MainWindowView {
     context_menu: muda::Menu,
     is_dragging: bool,
     accent_light2_color: Option<egui::Color32>,
+    accent_color: Option<egui::Color32>,
+    forgreound_color: Option<egui::Color32>,
 }
 
 impl MainWindowView {
@@ -88,22 +90,32 @@ impl MainWindowView {
             workspaces,
             context_menu,
             is_dragging: false,
+            accent_color: None,
             accent_light2_color: None,
+            forgreound_color: None,
         };
 
-        if let Err(e) = view.update_system_accent() {
-            log::error!("Failed to get system accent: {e}");
+        if let Err(e) = view.update_system_colors() {
+            log::error!("Failed to get system colors: {e}");
         }
 
         Ok(view)
     }
 
-    fn update_system_accent(&mut self) -> anyhow::Result<()> {
+    fn update_system_colors(&mut self) -> anyhow::Result<()> {
         let settings = UISettings::new()?;
+
+        let color = settings.GetColorValue(UIColorType::Accent)?;
+        let color = egui::Color32::from_rgb(color.R, color.G, color.B);
+        self.accent_color.replace(color);
 
         let color = settings.GetColorValue(UIColorType::AccentLight2)?;
         let color = egui::Color32::from_rgb(color.R, color.G, color.B);
         self.accent_light2_color.replace(color);
+
+        let color = settings.GetColorValue(UIColorType::Foreground)?;
+        let color = egui::Color32::from_rgb(color.R, color.G, color.B);
+        self.forgreound_color.replace(color);
 
         Ok(())
     }
@@ -206,89 +218,91 @@ impl MainWindowView {
         unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
     }
 
+    fn is_dark_mode(&self, ui: &egui::Ui) -> bool {
+        self.forgreound_color
+            .map(|c| c == egui::Color32::WHITE)
+            .unwrap_or_else(|| ui.visuals().dark_mode)
+    }
+
     fn workspace_button(
         &self,
         workspace: &crate::komorebi::Workspace,
         ui: &mut egui::Ui,
     ) -> egui::Response {
-        let original_style = egui::Style::clone(ui.style());
-        let style = ui.style_mut();
+        const RADIUS: f32 = 4.0;
+        const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
+        const LINE_FOCUSED_WIDTH: f32 = 15.0;
+        const LINE_NOTEMPTY_WIDTH: f32 = 6.0;
+        const LINE_HEIGHT: f32 = 3.5;
+        const TEXT_PADDING: egui::Vec2 = egui::vec2(16.0, 8.0);
 
-        let fill_color = if workspace.focused {
-            if let Some(accent_light2_color) = self.accent_light2_color {
-                accent_light2_color
-            } else {
-                style.visuals.selection.bg_fill
-            }
-        } else if workspace.is_empty {
-            egui::Color32::TRANSPARENT
+        let dark_mode = self.is_dark_mode(ui);
+
+        let font_id = egui::FontId::default();
+        let text_color = self.forgreound_color.unwrap_or(if dark_mode {
+            egui::Color32::WHITE
         } else {
-            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 5)
-        };
-
-        let hover_color = if let Some(accent_light2_color) = self.accent_light2_color {
-            accent_light2_color
-        } else {
-            style.visuals.selection.bg_fill
-        };
-
-        let hover_stroke_color = if is_light_color(hover_color) {
             egui::Color32::BLACK
+        });
+
+        let text = workspace.name.clone();
+        let text_galley = ui
+            .painter()
+            .layout_no_wrap(text, font_id.clone(), text_color);
+
+        let size = MIN_SIZE.max(text_galley.rect.size() + TEXT_PADDING);
+
+        let (rect, response) = ui.allocate_at_least(size, egui::Sense::CLICK | egui::Sense::HOVER);
+
+        let painter = ui.painter();
+
+        if response.hovered() || workspace.focused {
+            let color = if dark_mode {
+                egui::Color32::from_rgba_premultiplied(15, 15, 15, 3)
+            } else {
+                egui::Color32::from_rgba_premultiplied(30, 30, 30, 3)
+            };
+
+            painter.rect_filled(rect, RADIUS, color);
+        }
+
+        let line_width = if workspace.focused {
+            LINE_FOCUSED_WIDTH
         } else {
-            style.visuals.widgets.hovered.fg_stroke.color
+            LINE_NOTEMPTY_WIDTH
         };
 
-        let inactive_stroke_color = if workspace.focused {
-            hover_stroke_color
-        } else {
-            style.visuals.widgets.inactive.fg_stroke.color
-        };
+        let y = rect.max.y - LINE_HEIGHT;
+        let x = rect.min.x + rect.width() / 2.0 - line_width / 2.0;
+        let line_rect = rect.with_min_y(y).with_min_x(x).with_max_x(x + line_width);
 
-        let active_border_color = egui::Color32::LIGHT_GRAY;
+        if workspace.focused {
+            let color = if dark_mode {
+                self.accent_light2_color
+            } else {
+                self.accent_color
+            };
+            let color = color.unwrap_or(egui::Color32::CYAN);
 
-        let inactive_border_color = if workspace.focused {
-            active_border_color
-        } else {
-            egui::Color32::GRAY
-        };
+            painter.rect_filled(line_rect, RADIUS, color);
+        } else if !workspace.is_empty {
+            let color = if dark_mode {
+                egui::Color32::from_rgba_unmultiplied(180, 173, 170, 125)
+            } else {
+                egui::Color32::from_rgba_unmultiplied(31, 31, 31, 150)
+            };
 
-        let stroke_width = 1.5;
+            painter.rect_filled(line_rect, RADIUS, color);
+        }
 
-        style.visuals.widgets.inactive = egui::style::WidgetVisuals {
-            bg_fill: fill_color,
-            weak_bg_fill: fill_color,
-            bg_stroke: egui::Stroke {
-                width: stroke_width,
-                color: inactive_border_color,
-            },
-            fg_stroke: egui::Stroke {
-                color: inactive_stroke_color,
-                ..style.visuals.widgets.inactive.fg_stroke
-            },
-            ..style.visuals.widgets.hovered
-        };
-
-        style.visuals.widgets.hovered = egui::style::WidgetVisuals {
-            bg_fill: hover_color,
-            weak_bg_fill: hover_color,
-            bg_stroke: egui::Stroke {
-                width: stroke_width,
-                color: active_border_color,
-            },
-            fg_stroke: egui::Stroke {
-                color: hover_stroke_color,
-                ..style.visuals.widgets.inactive.fg_stroke
-            },
-            ..style.visuals.widgets.hovered
-        };
-
-        let btn = egui::Button::new(&workspace.name)
-            .min_size(egui::vec2(24., 24.))
-            .corner_radius(2);
-
-        let response = ui.add(btn);
-
-        *ui.style_mut() = original_style;
+        let center = rect.min + (rect.max - rect.min) / 2.0;
+        painter.text(
+            center,
+            egui::Align2::CENTER_CENTER,
+            &workspace.name,
+            font_id,
+            text_color,
+        );
 
         response
     }
@@ -309,11 +323,14 @@ impl MainWindowView {
         }
 
         ui.horizontal_centered(|ui| {
+            let spacing = ui.style().spacing.item_spacing;
+            ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
             for workspace in self.workspaces.iter() {
                 if self.workspace_button(workspace, ui).clicked() && !self.is_dragging {
                     crate::komorebi::change_workspace(workspace.idx);
                 }
             }
+            ui.style_mut().spacing.item_spacing = spacing;
         })
     }
 
@@ -341,7 +358,7 @@ impl EguiView for MainWindowView {
             AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
             AppMessage::MenuEvent(e) if e.id() == "move" => self.start_host_dragging()?,
             AppMessage::MenuEvent(e) if e.id() == "quit" => self.close_host()?,
-            AppMessage::SystemSettingsChanged => self.update_system_accent()?,
+            AppMessage::SystemSettingsChanged => self.update_system_colors()?,
             _ => {}
         }
 
@@ -357,13 +374,4 @@ impl EguiView for MainWindowView {
             }
         });
     }
-}
-
-fn is_light_color(color: egui::Color32) -> bool {
-    let r = color.r() as f32;
-    let g = color.g() as f32;
-    let b = color.b() as f32;
-    let hsp = 0.299 * (r * r) + 0.587 * (g * g) + 0.114 * (b * b);
-    let hsp = hsp.sqrt();
-    hsp > 127.5
 }
