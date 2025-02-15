@@ -17,12 +17,12 @@ pub enum AppMessage {
 pub struct App {
     pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
-    pub host: HWND,
+    pub taskbar_hwnd: HWND,
     pub windows: HashMap<WindowId, EguiWindow>,
 }
 
 impl App {
-    pub fn new(host: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
+    pub fn new(taskbar_hwnd: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
         let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::DX12,
             ..Default::default()
@@ -30,7 +30,7 @@ impl App {
 
         Self {
             wgpu_instance,
-            host,
+            taskbar_hwnd,
             windows: Default::default(),
             proxy,
         }

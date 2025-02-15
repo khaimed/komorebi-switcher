@@ -22,17 +22,19 @@ impl App {
     pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
         log::info!("Creating main window");
 
+        let host = unsafe { crate::host::create_host(self.taskbar_hwnd, self.proxy.clone()) }?;
+
         let mut attrs = WindowAttributes::default();
 
         // get host width/height
         let mut rect = RECT::default();
-        unsafe { GetClientRect(self.host, &mut rect) }?;
+        unsafe { GetClientRect(host, &mut rect) }?;
         let width = rect.right - rect.left;
         let heigth = rect.bottom - rect.top;
 
         attrs = attrs.with_inner_size(PhysicalSize::new(width, heigth));
 
-        let parent = unsafe { NonZero::new_unchecked(self.host.0 as _) };
+        let parent = unsafe { NonZero::new_unchecked(host.0 as _) };
         let parent = Win32WindowHandle::new(parent);
         let parent = RawWindowHandle::Win32(parent);
 
@@ -49,7 +51,7 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(window.clone(), self.host)?;
+        let state = MainWindowView::new(window.clone(), host)?;
 
         let proxy = self.proxy.clone();
 
