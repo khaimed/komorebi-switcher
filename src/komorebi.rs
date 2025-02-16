@@ -96,6 +96,8 @@ enum KSocketEvent {
     SendContainerToWorkspaceNumber,
     CycleSendContainerToMonitor,
     CycleSendContainerToWorkspace,
+    Cloak,
+    Uncloak,
 }
 
 #[derive(Debug, Deserialize)]
