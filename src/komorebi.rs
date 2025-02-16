@@ -234,9 +234,19 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
             continue;
         };
 
-        log::trace!("Read a message from komorebi: {message}");
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&message) else {
+            continue;
+        };
 
-        let Ok(notification) = serde_json::from_str::<KNotification>(&message) else {
+        log::trace!(
+            "Read an event from komorebi: {}",
+            value
+                .get("event")
+                .map(|v| v.to_string())
+                .unwrap_or_default()
+        );
+
+        let Ok(notification) = serde_json::from_value::<KNotification>(value) else {
             continue;
         };
 
