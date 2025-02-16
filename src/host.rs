@@ -33,7 +33,7 @@ unsafe extern "system" fn enum_child_resize(hwnd: HWND, lparam: LPARAM) -> BOOL 
         height,
         SWP_NOMOVE | SWP_FRAMECHANGED,
     ) {
-        log::error!("Failed to resize child to match host: {e}")
+        tracing::error!("Failed to resize child to match host: {e}")
     }
 
     true.into()
@@ -82,14 +82,14 @@ unsafe extern "system" fn wndproc_host(
                 let x = window_pos.x;
                 let y = window_pos.y;
 
-                log::debug!("Storing window position into registry {x},{y}");
+                tracing::debug!("Storing window position into registry {x},{y}");
 
                 if let Err(e) = key.set_string(WINDOW_POS_X_KEY, &x.to_string()) {
-                    log::error!("Failed to store window pos x into registry: {e}")
+                    tracing::error!("Failed to store window pos x into registry: {e}")
                 }
 
                 if let Err(e) = key.set_string(WINDOW_POS_Y_KEY, &y.to_string()) {
-                    log::error!("Failed to store window pos y into registry: {e}")
+                    tracing::error!("Failed to store window pos y into registry: {e}")
                 }
             }
         }
@@ -111,7 +111,7 @@ unsafe extern "system" fn wndproc_host(
             let userdata = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             let userdata = &*(userdata as *const WndProcUserData);
             if let Err(e) = userdata.proxy.send_event(AppMessage::SystemSettingsChanged) {
-                log::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
+                tracing::error!("Failed to send `AppMessage::SystemSettingsChanged`: {e}")
             }
         }
 
@@ -153,7 +153,7 @@ pub unsafe fn create_host(
     let atom = RegisterClassW(&wc);
     debug_assert!(atom != 0);
 
-    log::debug!("Loading window position from registry");
+    tracing::debug!("Loading window position from registry");
     let key = CURRENT_USER.create(APP_REG_KEY)?;
     let window_pos_x = key.get_string(WINDOW_POS_X_KEY).ok();
     let window_pos_y = key.get_string(WINDOW_POS_Y_KEY).ok();

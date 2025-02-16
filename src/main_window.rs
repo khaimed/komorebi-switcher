@@ -20,7 +20,7 @@ use crate::widgets::WorkspaceButton;
 
 impl App {
     pub fn create_main_window(&mut self, event_loop: &ActiveEventLoop) -> anyhow::Result<()> {
-        log::info!("Creating main window");
+        tracing::info!("Creating main window");
 
         let host = unsafe { crate::host::create_host(self.taskbar_hwnd, self.proxy.clone()) }?;
 
@@ -99,7 +99,7 @@ impl MainWindowView {
         };
 
         if let Err(e) = view.update_system_colors() {
-            log::error!("Failed to get system colors: {e}");
+            tracing::error!("Failed to get system colors: {e}");
         }
 
         Ok(view)
@@ -144,7 +144,7 @@ impl MainWindowView {
             self.curr_width = width;
 
             if let Ok(rect) = self.host_client_rect() {
-                log::debug!("Resizing host to match content rect");
+                tracing::debug!("Resizing host to match content rect");
 
                 unsafe {
                     SetWindowPos(
@@ -207,7 +207,7 @@ impl MainWindowView {
     }
 
     fn close_host(&self) -> anyhow::Result<()> {
-        log::info!("Closing host window");
+        tracing::info!("Closing host window");
 
         unsafe {
             PostMessageW(
@@ -221,7 +221,7 @@ impl MainWindowView {
     }
 
     fn show_context_menu(&self) {
-        log::debug!("Showing context menu");
+        tracing::debug!("Showing context menu");
 
         let hwnd = self.host.0 as _;
         unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
@@ -257,7 +257,7 @@ impl MainWindowView {
 
             if ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary)) {
                 if let Err(e) = self.drag_host_window() {
-                    log::error!("Failed to start host darggign: {e}");
+                    tracing::error!("Failed to start host darggign: {e}");
                 }
             }
         }
@@ -321,7 +321,7 @@ impl EguiView for MainWindowView {
             let response = self.workspaces_row(ui);
 
             if let Err(e) = self.resize_host_to_rect(response.response.rect) {
-                log::error!("Failed to resize host to rect: {e}");
+                tracing::error!("Failed to resize host to rect: {e}");
             }
         });
     }

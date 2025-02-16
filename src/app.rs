@@ -41,7 +41,7 @@ impl ApplicationHandler<AppMessage> for App {
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
         if cause == StartCause::Init {
             self.create_main_window(event_loop).unwrap_or_else(|e| {
-                log::error!("Failed to create main window: {e}");
+                tracing::error!("Failed to create main window: {e}");
                 std::process::exit(1);
             });
         }
@@ -52,7 +52,7 @@ impl ApplicationHandler<AppMessage> for App {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
             if let Err(e) = window.view.handle_app_message(event_loop, &event) {
-                log::error!("Error while handling AppMessage: {e}")
+                tracing::error!("Error while handling AppMessage: {e}")
             }
 
             window.request_redraw();
@@ -66,9 +66,9 @@ impl ApplicationHandler<AppMessage> for App {
         event: WindowEvent,
     ) {
         if event == WindowEvent::CloseRequested {
-            log::info!("Closing main window");
+            tracing::info!("Closing main window");
             self.windows.remove(&window_id);
-            log::info!("Exiting event loop");
+            tracing::info!("Exiting event loop");
             event_loop.exit();
         }
 
@@ -77,7 +77,7 @@ impl ApplicationHandler<AppMessage> for App {
         };
 
         if let Err(e) = window.handle_window_event(event_loop, event) {
-            log::error!("Error while handing `WindowEevent`: {e}")
+            tracing::error!("Error while handing `WindowEevent`: {e}")
         }
     }
 }

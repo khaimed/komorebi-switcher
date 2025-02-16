@@ -199,7 +199,7 @@ fn workspaces_from_state(state: KState) -> anyhow::Result<Vec<Workspace>> {
 }
 
 pub fn read_workspaces() -> anyhow::Result<Vec<Workspace>> {
-    log::info!("Reading komorebi workspaces");
+    tracing::info!("Reading komorebi workspaces");
 
     let response = send_query(&KSocketMessage::State)?;
     let state: KState = serde_json::from_str(&response)?;
@@ -207,10 +207,10 @@ pub fn read_workspaces() -> anyhow::Result<Vec<Workspace>> {
 }
 
 pub fn change_workspace(idx: usize) {
-    log::info!("Changing komorebi workspace to {idx}");
+    tracing::info!("Changing komorebi workspace to {idx}");
 
     if let Err(e) = send_message(&KSocketMessage::FocusWorkspaceNumber(idx)) {
-        log::error!("Failed to change workspace: {e}")
+        tracing::error!("Failed to change workspace: {e}")
     }
 }
 
@@ -224,10 +224,10 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
         };
     };
 
-    log::info!("Listenting for messages from komorebi");
+    tracing::info!("Listenting for messages from komorebi");
 
     for incoming in socket.incoming().map_while(Result::ok) {
-        log::debug!("Received a message from komorebi");
+        tracing::debug!("Received a message from komorebi");
 
         let mut reader = BufReader::new(incoming);
 
@@ -240,7 +240,7 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
             continue;
         };
 
-        log::trace!(
+        tracing::trace!(
             "Read an event from komorebi: {}",
             value
                 .get("event")
@@ -255,13 +255,13 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
         let new_workspaces = match workspaces_from_state(notification.state) {
             Ok(new_workspaces) => new_workspaces,
             Err(e) => {
-                log::error!("Failed to read workspaces from state: {e}");
+                tracing::error!("Failed to read workspaces from state: {e}");
                 continue;
             }
         };
 
         if let Err(e) = proxy.send_event(AppMessage::UpdateWorkspaces(new_workspaces)) {
-            log::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
+            tracing::error!("Failed to send `AppMessage::UpdateWorkspaces`: {e}")
         }
     }
 }
