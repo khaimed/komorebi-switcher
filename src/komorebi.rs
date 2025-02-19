@@ -1,4 +1,8 @@
-use std::io::{BufRead, BufReader, Read, Write};
+use std::cell::OnceCell;
+use std::io::{BufReader, Read, Write};
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::time::Duration;
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
@@ -116,28 +120,38 @@ struct KNotification {
 
 const KOMOREBI_SOCK: &str = "komorebi.sock";
 
+fn komorebi_data_dir() -> anyhow::Result<Rc<PathBuf>> {
+    thread_local! {
+        static CELL: OnceCell<Option<Rc<PathBuf>>> = const { OnceCell::new() };
+    }
+
+    CELL.with(|cell| {
+        cell.get_or_init(move || {
+            dirs::data_local_dir()
+                .map(|dir| dir.join("komorebi"))
+                .map(Rc::new)
+        })
+        .clone()
+        .context("couldn't find komorebi data dir")
+    })
+}
+
 fn send_message(message: &KSocketMessage) -> anyhow::Result<()> {
-    let socket = dirs::data_local_dir()
-        .context("there is no local data directory")?
-        .join("komorebi")
-        .join(KOMOREBI_SOCK);
+    let socket = komorebi_data_dir()?.join(KOMOREBI_SOCK);
 
     let mut stream = UnixStream::connect(socket)?;
-    stream.set_write_timeout(Some(std::time::Duration::from_secs(1)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
     stream.write_all(serde_json::to_string(message)?.as_bytes())?;
 
     Ok(())
 }
 
 fn send_query(message: &KSocketMessage) -> anyhow::Result<String> {
-    let socket = dirs::data_local_dir()
-        .context("there is no local data directory")?
-        .join("komorebi")
-        .join(KOMOREBI_SOCK);
+    let socket = komorebi_data_dir()?.join(KOMOREBI_SOCK);
 
     let mut stream = UnixStream::connect(socket)?;
-    stream.set_read_timeout(Some(std::time::Duration::from_secs(1)))?;
-    stream.set_write_timeout(Some(std::time::Duration::from_secs(1)))?;
+    stream.set_read_timeout(Some(Duration::from_secs(1)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(1)))?;
     stream.write_all(serde_json::to_string(message)?.as_bytes())?;
     stream.shutdown(std::net::Shutdown::Write)?;
 
@@ -149,10 +163,7 @@ fn send_query(message: &KSocketMessage) -> anyhow::Result<String> {
 }
 
 fn subscribe(name: &str) -> anyhow::Result<UnixListener> {
-    let socket = dirs::data_local_dir()
-        .context("there is no local data directory")?
-        .join("komorebi")
-        .join(name);
+    let socket = komorebi_data_dir()?.join(name);
 
     match std::fs::remove_file(&socket) {
         Ok(()) => {}
@@ -220,30 +231,55 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
     let socket = loop {
         match subscribe(SOCK_NAME) {
             Ok(socket) => break socket,
-            Err(_) => std::thread::sleep(std::time::Duration::from_secs(1)),
+            Err(_) => std::thread::sleep(Duration::from_secs(1)),
         };
     };
 
     tracing::info!("Listenting for messages from komorebi");
 
-    for incoming in socket.incoming().map_while(Result::ok) {
-        tracing::debug!("Received a message from komorebi");
+    for client in socket.incoming() {
+        let client = match client {
+            Ok(i) => i,
+            Err(e) => {
+                tracing::error!("Error while receiving a client from komorebi: {e}");
+                continue;
+            }
+        };
 
-        let mut reader = BufReader::new(incoming);
+        match client.set_read_timeout(Some(Duration::from_secs(1))) {
+            Ok(()) => {}
+            Err(error) => tracing::error!("{}", error),
+        }
 
-        let mut message = String::new();
-        if reader.read_line(&mut message).is_err() {
+        let mut buffer = Vec::new();
+        let mut reader = BufReader::new(client);
+
+        // this is when we know a shutdown has been sent
+        if matches!(reader.read_to_end(&mut buffer), Ok(0)) {
+            tracing::info!("Disconnected from komorebi");
+
+            // keep trying to reconnect to komorebi
+            let connect_message = KSocketMessage::AddSubscriberSocket(SOCK_NAME.into());
+            while let Err(e) = send_message(&connect_message) {
+                tracing::info!("Failed to reconnect to komorebi: {e}");
+                std::thread::sleep(Duration::from_secs(1));
+            }
+
+            tracing::info!("Reconnected to komorebi");
+
+            continue;
+        }
+
+        let Ok(value) = serde_json::from_slice::<serde_json::Value>(&buffer) else {
             continue;
         };
 
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&message) else {
-            continue;
-        };
-
-        tracing::trace!(
-            "Read an event from komorebi: {}",
+        tracing::debug!(
+            "Received an event from komorebi: {}",
             value
                 .get("event")
+                .and_then(|o| o.as_object())
+                .and_then(|o| o.get("type"))
                 .map(|v| v.to_string())
                 .unwrap_or_default()
         );
