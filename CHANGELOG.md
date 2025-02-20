@@ -1,4 +1,4 @@
-# Unreleased
+# 0.4.0
 
 ## New
 
@@ -9,7 +9,7 @@
 
 - Fix workspace indicating it is busy when in fact it is empty, like when closing its last window from a different workspace.
 
-# v0.3.1
+# 0.3.1
 
 ## Fixed
 
@@ -20,7 +20,7 @@
 
 - Add logging, saved in `%APPDATA%\komorebi-switcher`
 
-# v0.3.0
+# 0.3.0
 
 ## New
 
@@ -34,7 +34,7 @@
   Now after choosing the "Move" context menu item, you need to click and drag the switcher around.
   It will save its position and exit out of dragging mode once you release the mouse click.
 
-# v0.2.0
+# 0.2.0
 
 ## New
 
@@ -47,6 +47,6 @@
 - Removed Alt+Click to close the switcher, use the context menu
 - Removed Shift+Click to move the switcher around, use the context menu
 
-# v0.1.0
+# 0.1.0
 
 - Inital Release
