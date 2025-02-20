@@ -1,5 +1,9 @@
 # Unreleased
 
+## Fixed
+
+- Fix workspace indicating it is busy when in fact it is empty, like when closing its last window from a different workspace.
+
 # v0.3.1
 
 ## Fixed
@@ -9,7 +13,7 @@
 
 ## New
 
-- Add logging, saved in `%APPDATA\komorebi-switcher`
+- Add logging, saved in `%APPDATA%\komorebi-switcher`
 
 # v0.3.0
 

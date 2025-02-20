@@ -102,6 +102,12 @@ enum KSocketEvent {
     CycleSendContainerToWorkspace,
     Cloak,
     Uncloak,
+    Destroy,
+    FocusChange,
+    Hide,
+    Minimize,
+    Show,
+    TitleUpdate,
 }
 
 #[derive(Debug, Deserialize)]
