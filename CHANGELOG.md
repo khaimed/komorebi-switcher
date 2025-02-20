@@ -3,6 +3,7 @@
 ## New
 
 - Added animations for active and non-empty workspace indicator.
+- Added thin border around active and hovered workspace, in attempt to closely match with taskbar buttons style.
 
 ## Fixed
 

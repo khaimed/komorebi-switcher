@@ -82,12 +82,23 @@ impl egui::Widget for WorkspaceButton<'_> {
         // draw background
         if response.hovered() || self.workspace.focused {
             let color = if dark_mode {
-                egui::Color32::from_rgba_premultiplied(15, 15, 15, 3)
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 1)
             } else {
-                egui::Color32::from_rgba_premultiplied(30, 30, 30, 3)
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 30)
             };
 
-            painter.rect_filled(rect, RADIUS, color);
+            let stroke_color = if dark_mode {
+                egui::Color32::from_rgba_unmultiplied(255, 255, 255, 2)
+            } else {
+                egui::Color32::from_rgba_unmultiplied(33, 33, 33, 33)
+            };
+
+            let stroke = egui::Stroke {
+                width: 1.0,
+                color: stroke_color,
+            };
+
+            painter.rect(rect, RADIUS, color, stroke, egui::StrokeKind::Inside);
         }
 
         // draw indicator
