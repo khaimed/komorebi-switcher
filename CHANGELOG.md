@@ -1,5 +1,9 @@
 # Unreleased
 
+## New
+
+- Added animations for active and non-empty workspace indicator.
+
 ## Fixed
 
 - Fix workspace indicating it is busy when in fact it is empty, like when closing its last window from a different workspace.

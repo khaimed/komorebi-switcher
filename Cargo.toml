@@ -31,6 +31,7 @@ strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
+egui_animation = "0.8.0"
 
 [patch.crates-io]
 wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }

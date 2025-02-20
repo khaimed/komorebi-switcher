@@ -56,15 +56,8 @@ impl EguiWindow {
             self.handle_redraw()?;
         }
 
-        match event {
-            WindowEvent::Resized(size) => {
-                self.handle_resized(size);
-            }
-
-            WindowEvent::CursorLeft { .. } => {
-                self.request_redraw();
-            }
-            _ => {}
+        if let WindowEvent::Resized(size) = event {
+            self.handle_resized(size);
         }
 
         self.view.handle_window_event(event_loop, event)

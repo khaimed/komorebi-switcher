@@ -54,9 +54,9 @@ impl egui::Widget for WorkspaceButton<'_> {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
         const RADIUS: f32 = 4.0;
         const MIN_SIZE: egui::Vec2 = egui::vec2(28.0, 28.0);
-        const LINE_FOCUSED_WIDTH: f32 = 15.0;
-        const LINE_NOTEMPTY_WIDTH: f32 = 6.0;
-        const LINE_HEIGHT: f32 = 3.5;
+        const INDICATOR_FOCUSED_WIDTH: f32 = 14.0;
+        const INDICATOR_BASE_WIDTH: f32 = 6.0;
+        const INDICATOR_HEIGHT: f32 = 3.5;
         const TEXT_PADDING: egui::Vec2 = egui::vec2(16.0, 8.0);
 
         let dark_mode = self.dark_mode.unwrap_or_else(|| ui.visuals().dark_mode);
@@ -79,6 +79,7 @@ impl egui::Widget for WorkspaceButton<'_> {
 
         let painter = ui.painter();
 
+        // draw background
         if response.hovered() || self.workspace.focused {
             let color = if dark_mode {
                 egui::Color32::from_rgba_premultiplied(15, 15, 15, 3)
@@ -89,36 +90,57 @@ impl egui::Widget for WorkspaceButton<'_> {
             painter.rect_filled(rect, RADIUS, color);
         }
 
-        let line_width = if self.workspace.focused {
-            LINE_FOCUSED_WIDTH
+        // draw indicator
+
+        // animate opacity
+        let target_opacity = (self.workspace.focused || !self.workspace.is_empty) as i32 as f32;
+        let opacity = egui_animation::animate_eased(
+            ui.ctx(),
+            format!("Opacity{}", self.workspace.idx),
+            target_opacity,
+            0.3,
+            egui_animation::easing::sine_out,
+        );
+
+        // animate width
+        let target_line_width = if !response.is_pointer_button_down_on() && self.workspace.focused {
+            INDICATOR_FOCUSED_WIDTH
         } else {
-            LINE_NOTEMPTY_WIDTH
+            INDICATOR_BASE_WIDTH
         };
+        let line_width = egui_animation::animate_eased(
+            ui.ctx(),
+            format!("Width{}", self.workspace.idx),
+            target_line_width,
+            0.2,
+            egui_animation::easing::sine_out,
+        );
 
-        let x = rect.min.x + rect.width() / 2.0 - line_width / 2.0;
+        if line_width != target_line_width || opacity != target_opacity {
+            ui.ctx().request_repaint();
+        }
 
+        let x = rect.center().x - line_width / 2.0;
         let mut line_rect = rect.with_min_x(x).with_max_x(x + line_width);
 
         if self.line_on_top {
-            line_rect = line_rect.with_max_y(rect.min.y + LINE_HEIGHT);
+            line_rect = line_rect.with_max_y(rect.min.y + INDICATOR_HEIGHT);
         } else {
-            line_rect = line_rect.with_min_y(rect.max.y - LINE_HEIGHT);
+            line_rect = line_rect.with_min_y(rect.max.y - INDICATOR_HEIGHT);
         };
 
-        if self.workspace.focused {
-            let color = self.line_focused_color.unwrap_or(egui::Color32::CYAN);
+        let color = if self.workspace.focused {
+            let c = self.line_focused_color.unwrap_or(egui::Color32::CYAN);
+            egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (opacity * 255.0) as u8)
+        } else if dark_mode {
+            egui::Color32::from_rgba_unmultiplied(180, 173, 170, (opacity * 125.0) as u8)
+        } else {
+            egui::Color32::from_rgba_unmultiplied(31, 31, 31, (opacity * 150.0) as u8)
+        };
 
-            painter.rect_filled(line_rect, RADIUS, color);
-        } else if !self.workspace.is_empty {
-            let color = if dark_mode {
-                egui::Color32::from_rgba_unmultiplied(180, 173, 170, 125)
-            } else {
-                egui::Color32::from_rgba_unmultiplied(31, 31, 31, 150)
-            };
+        painter.rect_filled(line_rect, RADIUS, color);
 
-            painter.rect_filled(line_rect, RADIUS, color);
-        }
-
+        // draw text
         let text_color = if response.hovered() || self.workspace.focused {
             text_color
         } else {

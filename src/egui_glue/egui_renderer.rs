@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use winit::window::Window;
 
 pub struct EguiRenderer {
@@ -12,9 +14,16 @@ impl EguiRenderer {
         output_color_format: wgpu::TextureFormat,
         output_depth_format: Option<wgpu::TextureFormat>,
         msaa_samples: u32,
-        window: &Window,
+        window: &Arc<Window>,
     ) -> Self {
         let egui_context = egui::Context::default();
+
+        {
+            let window = window.clone();
+            egui_context.set_request_repaint_callback(move |_| {
+                window.request_redraw();
+            });
+        }
 
         let egui_state = egui_winit::State::new(
             egui_context,
