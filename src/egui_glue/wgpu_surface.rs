@@ -28,7 +28,7 @@ impl WgpuSurface {
         let visual = wgpu::SurfaceTargetUnsafe::CompositionVisual(visual);
         let surface = unsafe { instance.create_surface_unsafe(visual)? };
 
-        let power_pref = wgpu::PowerPreference::default();
+        let power_pref = wgpu::PowerPreference::LowPower;
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: power_pref,
