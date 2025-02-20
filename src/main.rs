@@ -75,6 +75,10 @@ fn main() -> anyhow::Result<()> {
 
     tracing::debug!("Initialized Logger");
 
+    std::panic::set_hook(Box::new(|info| {
+        tracing::error!("{info}");
+    }));
+
     if let Err(e) = run() {
         tracing::error!("{e}");
         std::process::exit(1);
