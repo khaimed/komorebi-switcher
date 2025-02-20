@@ -1,0 +1,18 @@
+{
+  "version": "<version>",
+  "description": "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar.",
+  "homepage": "https://github.com/amrbashir/komorebi-switcher",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/amrbashir/komorebi-switcher/releases/download/v<version>/komorebi-switcher.zip",
+      "hash": "<hash>"
+    }
+  },
+  "bin": "komorebi-switcher.exe",
+  "shortcuts": [["komorebi-switcher.exe", "komorebi-switcher"]],
+  "checkver": "github",
+  "autoupdate": {
+    "url": "https://github.com/amrbashir/komorebi-switcher/releases/download/v$version/komorebi-switcher.zip"
+  }
+}

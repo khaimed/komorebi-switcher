@@ -14,21 +14,47 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
+
       - run: cargo build --release
       - run: mv ./target/release/komorebi-switcher.exe komorebi-switcher.exe
-      - run: cp komorebi-switcher.exe komorebi-switcher-${{github.ref_name}}.exe
-      - name: install NSIS
+
+      - name: install nsis
         run: |
           iwr -useb get.scoop.sh -outfile 'install.ps1'
           .\install.ps1 -RunAsAdmin
           scoop update
           scoop bucket add extras
-          scoop install nsis 
+          scoop install nsis
       - run: makensis /V4 installer.nsi
-      - run: mv komorebi-switcher-setup.exe komorebi-switcher-${{github.ref_name}}-setup.exe
+      - name: compress exe
+        run: Compress-Archive komorebi-switcher.exe komorebi-switcher.zip
+
+      - name: generate checksums.txt
+        run: |
+          echo "$((Get-FileHash komorebi-switcher.exe).Hash.ToLower())  komorebi-switcher.exe" >> checksums.txt
+          echo "$((Get-FileHash komorebi-switcher.zip).Hash.ToLower())  komorebi-switcher.zip" >> checksums.txt
+          echo "$((Get-FileHash komorebi-switcher-setup.exe).Hash.ToLower())  komorebi-switcher-setup.exe" >> checksums.txt
+
       - name: release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: "CHANGELOG.md"
           files: |
-            komorebi-switcher-${{github.ref_name}}.exe
-            komorebi-switcher-${{github.ref_name}}-setup.exe
+            *.exe
+            *.zip
+            checksums.txt
+
+      - name: generate komorebi-switcher.json for scoop
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $jsonContent = Get-Content "scoop-template.json"
+
+          $zipHash = (Get-FileHash komorebi-switcher.zip).Hash.ToLower()
+          $jsonContent = $jsonContent -replace "<hash>", $zipHash
+
+          $version = $env:GITHUB_REF_NAME
+          $version = $version.StartsWith("v") ? $version.Substring(1): $version
+          $jsonContent = $jsonContent -replace "<version>", $version
+
+          $jsonContent > "komorebi-switcher.json"

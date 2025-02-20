@@ -11,7 +11,6 @@ InstallDir "$LOCALAPPDATA\komorebi-switcher"
 
 RequestExecutionLevel user
 
-
 !define PRODUCTNAME "komorebi-switcher"
 !define MAINBINARYNAME "komorebi-switcher.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
