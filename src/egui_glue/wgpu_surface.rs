@@ -40,14 +40,13 @@ impl WgpuSurface {
 
         let (width, height) = window.inner_size().into();
 
-        let features = wgpu::Features::empty();
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    required_features: features,
-                    required_limits: Default::default(),
-                    memory_hints: Default::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    memory_hints: wgpu::MemoryHints::MemoryUsage,
                 },
                 None,
             )

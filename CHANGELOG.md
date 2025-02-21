@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixed
+
+- Reduce the memory usage of the app from 430mb to 110mb, hopefully more improvements in future releases.
+
 # 0.4.0
 
 ## New
