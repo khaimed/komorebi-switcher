@@ -35,11 +35,29 @@ jobs:
           echo "$((Get-FileHash komorebi-switcher.exe).Hash.ToLower())  komorebi-switcher.exe" >> checksums.txt
           echo "$((Get-FileHash komorebi-switcher.zip).Hash.ToLower())  komorebi-switcher.zip" >> checksums.txt
           echo "$((Get-FileHash komorebi-switcher-setup.exe).Hash.ToLower())  komorebi-switcher-setup.exe" >> checksums.txt
+      
+      - name: trim changelog to current release
+        run: |
+          $changelog = Get-Content CHANGELOG.md 
+
+          $matchCount = 0
+          $index = -1
+          for ($i = 0; $i -lt $changelog.Length; $i++) {
+              if ($changelog[$i] -match '^(?!##)#') {
+                  $matchCount++
+                  if ($matchCount -eq 2) {
+                      $index = $i - 1
+                      break
+                  }
+              }
+          }
+
+          $changelog[1..$index] | Set-Content CHANGELOG.md
 
       - name: release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: "CHANGELOG.md"
+          body_path: CHANGELOG.md
           files: |
             *.exe
             *.zip
