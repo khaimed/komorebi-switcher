@@ -75,38 +75,25 @@ impl DCompWindow {
         );
 
         if draw {
-            let dc = &self.dx12_surface.render_target;
+            let dc = &self.dx12_surface.dc;
             unsafe { dc.BeginDraw() };
-            dbg!(1);
-            unsafe {
-                let color = D2D1_COLOR_F {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                };
-                let brush = dc.CreateSolidColorBrush(&color, None)?;
-                let rect = D2D_RECT_F {
-                    left: 0.,
-                    top: 0.,
-                    right: 20.,
-                    bottom: 20.,
-                };
-                let draw = matches!(event, WindowEvent::MouseInput { .. });
-                if draw {
-                    dc.FillRectangle(&rect, &brush);
-                }
+            let color = D2D1_COLOR_F {
+                r: 0.5,
+                g: 0.5,
+                b: 0.5,
+                a: 0.5,
             };
-            dbg!(2);
-            unsafe { dc.EndDraw(None, None)? };
-            dbg!(3);
-            unsafe {
-                self.dx12_surface
-                    .swapchain
-                    .Present(1, DXGI_PRESENT(0))
-                    .ok()?
+            let rect = D2D_RECT_F {
+                left: 0.0,
+                top: 0.0,
+                right: 28.0,
+                bottom: 28.0,
             };
-            dbg!(4);
+            let brush = unsafe { dc.CreateSolidColorBrush(&color, None) }?;
+            unsafe { dc.Clear(None) };
+            unsafe { dc.FillRectangle(&rect, &brush) };
+            unsafe { dc.EndDraw(None, None) }?;
+            unsafe { self.dx12_surface.swapchain.Present(1, DXGI_PRESENT(0)) }.ok()?;
         }
 
         self.view.handle_window_event(event_loop, event)

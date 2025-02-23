@@ -11,58 +11,58 @@ use windows::Win32::Graphics::Dxgi::*;
 use winit::window::Window;
 
 pub struct Dx12Surface {
-    #[allow(unused)]
-    pub device: ID3D11Device,
-    // pub desktop: IDCompositionDesktopDevice,
-    #[allow(unused)]
-    // pub desktop_target: IDCompositionTarget,
-    // pub root_visual: IDCompositionVisual2,
     pub width: u32,
     pub height: u32,
-    pub render_target: ID2D1DeviceContext,
+    pub hwnd: HWND,
+    pub d3d_device: ID3D11Device,
+    pub dx_factory: IDXGIFactory2,
     pub swapchain: IDXGISwapChain1,
+    pub d2_factory: ID2D1Factory2,
+    pub d2_device: ID2D1Device1,
+    pub dc: ID2D1DeviceContext1,
+    pub surface: IDXGISurface2,
+    pub bitmap: ID2D1Bitmap1,
+    pub dcomp_device: IDCompositionDevice,
+    pub target: IDCompositionTarget,
+    pub visual: IDCompositionVisual,
 }
 
 impl Dx12Surface {
     pub fn new(window: &Window) -> anyhow::Result<Self> {
         let (width, height) = window.inner_size().into();
-
-        let factory = create_factory()?;
-        let device = create_device()?;
-        let target = create_render_target(&factory, &device)?;
-        let hwnd = window.window_handle()?;
-        let RawWindowHandle::Win32(hwnd) = hwnd.as_raw() else {
-            anyhow::bail!("Window handle must be win32");
-        };
-        let hwnd = HWND(hwnd.hwnd.get() as _);
-        let swapchain = create_swapchain(&device, hwnd)?;
-        create_swapchain_bitmap(&swapchain, &target)?;
-
-        let render_target = create_render_target(&factory, &device)?;
-
-        // let dxgi3: IDXGIDevice3 = device.cast()?;
-        // let device_2d = unsafe { D2D1CreateDevice(&dxgi3, None) }?;
-
-        // let desktop: IDCompositionDesktopDevice = unsafe { DCompositionCreateDevice2(&device_2d)? };
-
-        // let desktop_target = unsafe { desktop.CreateTargetForHwnd(hwnd, true) }?;
-
-        // let root_visual = unsafe { desktop.CreateVisual() }?;
-        // unsafe { desktop_target.SetRoot(&root_visual) }?;
-
-        // unsafe { root_visual.SetContent(&render_target)? };
-
-        // unsafe { desktop.Commit() }?;
+        let hwnd = get_hwnd(window)?;
+        let d3d_device = create_device()?;
+        let dx_factory = create_factory()?;
+        let dxgi_device = d3d_device.cast::<IDXGIDevice>()?;
+        let swapchain = create_swapchain(&dx_factory, &dxgi_device, width, height)?;
+        let d2_factory = create_d2_factory()?;
+        let d2_device = unsafe { d2_factory.CreateDevice(&dxgi_device) }?;
+        let dc = unsafe { d2_device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE) }?;
+        let surface: IDXGISurface2 = unsafe { swapchain.GetBuffer(0) }?;
+        let bitmap = create_swapchain_bitmap(&dc, &surface)?;
+        unsafe { dc.SetTarget(&bitmap) };
+        let dcomp_device = create_dcomp_device(&dxgi_device)?;
+        let target = unsafe { dcomp_device.CreateTargetForHwnd(hwnd, true) }?;
+        let visual = unsafe { dcomp_device.CreateVisual() }?;
+        unsafe { visual.SetContent(&swapchain) }?;
+        unsafe { target.SetRoot(&visual) }?;
+        unsafe { dcomp_device.Commit() }?;
 
         Ok(Self {
-            // desktop,
-            // desktop_target,
-            // root_visual,
-            device,
-            render_target,
-            height,
             width,
+            height,
+            hwnd,
+            d3d_device,
+            dx_factory,
             swapchain,
+            d2_factory,
+            d2_device,
+            dc,
+            surface,
+            bitmap,
+            dcomp_device,
+            target,
+            visual,
         })
     }
 
@@ -71,7 +71,25 @@ impl Dx12Surface {
     }
 }
 
-fn create_factory() -> Result<ID2D1Factory1> {
+fn get_hwnd(window: &Window) -> anyhow::Result<HWND> {
+    let hwnd = window.window_handle()?;
+    let RawWindowHandle::Win32(hwnd) = hwnd.as_raw() else {
+        anyhow::bail!("Window handle must be win32");
+    };
+    Ok(HWND(hwnd.hwnd.get() as _))
+}
+
+fn create_factory() -> Result<IDXGIFactory2> {
+    let mut flags = DXGI_CREATE_FACTORY_FLAGS::default();
+
+    if cfg!(debug_assertions) {
+        flags |= DXGI_CREATE_FACTORY_DEBUG;
+    }
+
+    unsafe { CreateDXGIFactory2(flags) }
+}
+
+fn create_d2_factory() -> Result<ID2D1Factory2> {
     let mut options = D2D1_FACTORY_OPTIONS::default();
 
     if cfg!(debug_assertions) {
@@ -130,38 +148,15 @@ fn create_render_target(
     }
 }
 
-fn get_dxgi_factory(device: &ID3D11Device) -> Result<IDXGIFactory2> {
-    let dxdevice = device.cast::<IDXGIDevice>()?;
-    unsafe { dxdevice.GetAdapter()?.GetParent() }
-}
-
-fn create_swapchain_bitmap(swapchain: &IDXGISwapChain1, target: &ID2D1DeviceContext) -> Result<()> {
-    let surface: IDXGISurface = unsafe { swapchain.GetBuffer(0)? };
-
-    let props = D2D1_BITMAP_PROPERTIES1 {
-        pixelFormat: D2D1_PIXEL_FORMAT {
-            format: DXGI_FORMAT_B8G8R8A8_UNORM,
-            alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-        },
-        dpiX: 96.0,
-        dpiY: 96.0,
-        bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        ..Default::default()
-    };
-
-    unsafe {
-        let bitmap = target.CreateBitmapFromDxgiSurface(&surface, Some(&props))?;
-        target.SetTarget(&bitmap);
-    };
-
-    Ok(())
-}
-
-fn create_swapchain(device: &ID3D11Device, window: HWND) -> Result<IDXGISwapChain1> {
-    let factory = get_dxgi_factory(device)?;
-
+fn create_swapchain(
+    dx_factory: &IDXGIFactory2,
+    dxgi_device: &IDXGIDevice,
+    width: u32,
+    height: u32,
+) -> Result<IDXGISwapChain1> {
     let props = DXGI_SWAP_CHAIN_DESC1 {
         Format: DXGI_FORMAT_B8G8R8A8_UNORM,
+        AlphaMode: DXGI_ALPHA_MODE_PREMULTIPLIED,
         SampleDesc: DXGI_SAMPLE_DESC {
             Count: 1,
             Quality: 0,
@@ -169,8 +164,30 @@ fn create_swapchain(device: &ID3D11Device, window: HWND) -> Result<IDXGISwapChai
         BufferUsage: DXGI_USAGE_RENDER_TARGET_OUTPUT,
         BufferCount: 2,
         SwapEffect: DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL,
+        Height: height,
+        Width: width,
         ..Default::default()
     };
 
-    unsafe { factory.CreateSwapChainForHwnd(device, window, &props, None, None) }
+    unsafe { dx_factory.CreateSwapChainForComposition(dxgi_device, &props, None) }
+}
+
+fn create_swapchain_bitmap(
+    dc: &ID2D1DeviceContext1,
+    surface: &IDXGISurface2,
+) -> Result<ID2D1Bitmap1> {
+    let props = D2D1_BITMAP_PROPERTIES1 {
+        pixelFormat: D2D1_PIXEL_FORMAT {
+            format: DXGI_FORMAT_B8G8R8A8_UNORM,
+            alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
+        },
+        bitmapOptions: D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+        ..Default::default()
+    };
+
+    unsafe { dc.CreateBitmapFromDxgiSurface(surface, Some(&props)) }
+}
+
+fn create_dcomp_device(dxgi_device: &IDXGIDevice) -> Result<IDCompositionDevice> {
+    unsafe { DCompositionCreateDevice2(dxgi_device) }
 }
