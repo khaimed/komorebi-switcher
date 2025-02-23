@@ -4,6 +4,8 @@ use std::sync::Arc;
 use muda::ContextMenu;
 use raw_window_handle::{RawWindowHandle, Win32WindowHandle};
 use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Direct2D::Common::*;
+use windows::Win32::Graphics::Direct2D::ID2D1DeviceContext;
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -14,7 +16,7 @@ use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
 
 use crate::app::{App, AppMessage};
-use crate::egui_glue::{EguiView, EguiWindow};
+use crate::dcomp::{DCompView, DCompWindow};
 use crate::komorebi::listen_for_workspaces;
 use crate::widgets::WorkspaceButton;
 
@@ -51,13 +53,11 @@ impl App {
         let window = event_loop.create_window(attrs)?;
         let window = Arc::new(window);
 
-        let state = MainWindowView::new(window.clone(), host)?;
-
         let proxy = self.proxy.clone();
-
         std::thread::spawn(move || listen_for_workspaces(proxy));
 
-        let window = EguiWindow::new(window, &self.wgpu_instance, state)?;
+        let view = MainWindowView::new(window.clone(), host)?;
+        let window = DCompWindow::new(window, view)?;
 
         self.windows.insert(window.id(), window);
 
@@ -299,7 +299,7 @@ impl MainWindowView {
     }
 }
 
-impl EguiView for MainWindowView {
+impl DCompView for MainWindowView {
     fn handle_app_message(
         &mut self,
         _event_loop: &ActiveEventLoop,
@@ -316,13 +316,35 @@ impl EguiView for MainWindowView {
         Ok(())
     }
 
-    fn update(&mut self, ctx: &egui::Context) {
-        Self::transparent_panel(ctx).show(ctx, |ui| {
-            let response = self.workspaces_row(ui);
+    fn draw(&mut self, dc: ID2D1DeviceContext) -> anyhow::Result<()> {
+        unsafe {
+            let brush_color = D2D1_COLOR_F {
+                r: 0.5,
+                g: 0.5,
+                b: 0.5,
+                a: 0.5,
+            };
+            let brush = dc.CreateSolidColorBrush(&brush_color, None)?;
 
-            if let Err(e) = self.resize_host_to_rect(response.response.rect) {
-                tracing::error!("Failed to resize host to rect: {e}");
-            }
-        });
+            let rect = D2D_RECT_F {
+                left: 0.0,
+                top: 0.0,
+                right: 100.0,
+                bottom: 100.0,
+            };
+
+            dc.FillRectangle(&rect, &brush);
+        }
+        Ok(())
     }
+
+    // fn update(&mut self, ctx: &egui::Context) {
+    //     Self::transparent_panel(ctx).show(ctx, |ui| {
+    //         let response = self.workspaces_row(ui);
+
+    //         if let Err(e) = self.resize_host_to_rect(response.response.rect) {
+    //             tracing::error!("Failed to resize host to rect: {e}");
+    //         }
+    //     });
+    // }
 }

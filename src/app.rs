@@ -6,7 +6,7 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
-use crate::egui_glue::EguiWindow;
+use crate::dcomp::DCompWindow;
 
 pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
@@ -15,21 +15,14 @@ pub enum AppMessage {
 }
 
 pub struct App {
-    pub wgpu_instance: wgpu::Instance,
     pub proxy: EventLoopProxy<AppMessage>,
     pub taskbar_hwnd: HWND,
-    pub windows: HashMap<WindowId, EguiWindow>,
+    pub windows: HashMap<WindowId, DCompWindow>,
 }
 
 impl App {
     pub fn new(taskbar_hwnd: HWND, proxy: EventLoopProxy<AppMessage>) -> Self {
-        let wgpu_instance = egui_wgpu::wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::DX12,
-            ..Default::default()
-        });
-
         Self {
-            wgpu_instance,
             taskbar_hwnd,
             windows: Default::default(),
             proxy,
@@ -51,7 +44,7 @@ impl ApplicationHandler<AppMessage> for App {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
-            if let Err(e) = window.view.handle_app_message(event_loop, &event) {
+            if let Err(e) = window.handle_app_message(event_loop, &event) {
                 tracing::error!("Error while handling AppMessage: {e}")
             }
 
@@ -66,10 +59,12 @@ impl ApplicationHandler<AppMessage> for App {
         event: WindowEvent,
     ) {
         if event == WindowEvent::CloseRequested {
-            tracing::info!("Closing main window");
+            tracing::info!("Closing window {window_id:?}");
             self.windows.remove(&window_id);
-            tracing::info!("Exiting event loop");
-            event_loop.exit();
+            if self.windows.is_empty() {
+                tracing::info!("Exiting event loop");
+                event_loop.exit();
+            }
         }
 
         let Some(window) = self.windows.get_mut(&window_id) else {

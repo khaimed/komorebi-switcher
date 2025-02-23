@@ -37,7 +37,7 @@ egui_animation = "0.8.0"
 wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }
 
 [dependencies.windows]
-version = "0.59"
+version = "0.60"
 features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_System_LibraryLoader",
@@ -51,4 +51,5 @@ features = [
   "Win32_Graphics_Direct2D_Common",
   "Win32_Graphics_DirectComposition",
   "Win32_Graphics_Dxgi_Common",
+  "Foundation_Numerics",
 ]
