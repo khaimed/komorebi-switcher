@@ -7,9 +7,12 @@ use winit::event_loop::EventLoopProxy;
 
 use crate::app::AppMessage;
 
+#[cfg(debug_assertions)]
+const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher-debug";
+#[cfg(not(debug_assertions))]
 const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
-const WINDOW_POS_X_KEY: &str = "window-pos-x";
 
+const WINDOW_POS_X_KEY: &str = "window-pos-x";
 const WINDOW_POS_Y_KEY: &str = "window-pos-y";
 
 struct WndProcUserData {
