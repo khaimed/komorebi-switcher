@@ -9,7 +9,7 @@ use winit::event_loop::EventLoop;
 use crate::app::{App, AppMessage};
 
 mod app;
-mod dcomp;
+mod egui_dcomp;
 mod host;
 mod komorebi;
 mod main_window;

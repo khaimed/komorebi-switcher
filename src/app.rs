@@ -6,7 +6,7 @@ use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
-use crate::dcomp::DCompWindow;
+use crate::egui_dcomp::EguiWindow;
 
 pub enum AppMessage {
     UpdateWorkspaces(Vec<crate::komorebi::Workspace>),
@@ -17,7 +17,7 @@ pub enum AppMessage {
 pub struct App {
     pub proxy: EventLoopProxy<AppMessage>,
     pub taskbar_hwnd: HWND,
-    pub windows: HashMap<WindowId, DCompWindow>,
+    pub windows: HashMap<WindowId, EguiWindow>,
 }
 
 impl App {
@@ -44,7 +44,7 @@ impl ApplicationHandler<AppMessage> for App {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
-            if let Err(e) = window.handle_app_message(event_loop, &event) {
+            if let Err(e) = window.view.handle_app_message(event_loop, &event) {
                 tracing::error!("Error while handling AppMessage: {e}")
             }
 

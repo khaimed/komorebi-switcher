@@ -10,12 +10,14 @@ use windows::Win32::Graphics::Dxgi::Common::*;
 use windows::Win32::Graphics::Dxgi::*;
 use winit::window::Window;
 
+#[allow(unused)]
 pub struct Dx12Surface {
     pub width: u32,
     pub height: u32,
     pub hwnd: HWND,
     pub d3d_device: ID3D11Device,
     pub dx_factory: IDXGIFactory2,
+    pub dxgi_device: IDXGIDevice,
     pub swapchain: IDXGISwapChain1,
     pub d2_factory: ID2D1Factory2,
     pub d2_device: ID2D1Device1,
@@ -54,6 +56,7 @@ impl Dx12Surface {
             hwnd,
             d3d_device,
             dx_factory,
+            dxgi_device,
             swapchain,
             d2_factory,
             d2_device,
@@ -67,6 +70,21 @@ impl Dx12Surface {
     }
 
     pub fn configure(&mut self, width: u32, height: u32) -> anyhow::Result<()> {
+        self.width = width;
+        self.height = height;
+
+        let swapchain = create_swapchain(&self.dx_factory, &self.dxgi_device, width, height)?;
+        let surface: IDXGISurface2 = unsafe { swapchain.GetBuffer(0) }?;
+        let bitmap = create_swapchain_bitmap(&self.dc, &surface)?;
+
+        unsafe { self.dc.SetTarget(&bitmap) };
+        unsafe { self.visual.SetContent(&swapchain) }?;
+        unsafe { self.dcomp_device.Commit() }?;
+
+        self.swapchain = swapchain;
+        self.surface = surface;
+        self.bitmap = bitmap;
+
         Ok(())
     }
 }
@@ -134,18 +152,6 @@ fn create_device() -> Result<ID3D11Device> {
     }
 
     result
-}
-
-fn create_render_target(
-    factory: &ID2D1Factory1,
-    device: &ID3D11Device,
-) -> Result<ID2D1DeviceContext> {
-    unsafe {
-        let d2device = factory.CreateDevice(&device.cast::<IDXGIDevice>()?)?;
-        let target = d2device.CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE)?;
-        target.SetUnitMode(D2D1_UNIT_MODE_DIPS);
-        Ok(target)
-    }
 }
 
 fn create_swapchain(
