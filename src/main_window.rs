@@ -9,6 +9,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::UI::ViewManagement::{UIColorType, UISettings};
 use winit::dpi::PhysicalSize;
+use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::platform::windows::WindowAttributesExtWindows;
 use winit::window::{Window, WindowAttributes};
@@ -81,17 +82,12 @@ impl MainWindowView {
     fn new(window: Arc<Window>, host: HWND) -> anyhow::Result<Self> {
         let workspaces = crate::komorebi::read_workspaces().unwrap_or_default();
 
-        let context_menu = muda::Menu::with_items(&[
-            &muda::MenuItem::with_id("move", "Move", true, None),
-            &muda::MenuItem::with_id("quit", "Quit", true, None),
-        ])?;
-
         let mut view = Self {
             window,
             host,
             curr_width: 0,
             workspaces,
-            context_menu,
+            context_menu: Self::create_context_menu()?,
             is_dragging: false,
             accent_color: None,
             accent_light2_color: None,
@@ -103,6 +99,24 @@ impl MainWindowView {
         }
 
         Ok(view)
+    }
+
+    const M_MOVE_ID: &str = "move";
+    const M_QUIT_ID: &str = "quit";
+
+    fn create_context_menu() -> anyhow::Result<muda::Menu> {
+        muda::Menu::with_items(&[
+            &muda::MenuItem::with_id(Self::M_MOVE_ID, "Move", true, None),
+            &muda::MenuItem::with_id(Self::M_QUIT_ID, "Quit", true, None),
+        ])
+        .map_err(Into::into)
+    }
+
+    fn show_context_menu(&self) {
+        tracing::debug!("Showing context menu");
+
+        let hwnd = self.host.0 as isize;
+        unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
     }
 
     fn update_system_colors(&mut self) -> anyhow::Result<()> {
@@ -135,8 +149,11 @@ impl MainWindowView {
         Ok(rect)
     }
 
+    const WORKSPACE_MARGIN: egui::Margin = egui::Margin::symmetric(1, 0);
+
     fn resize_host_to_rect(&mut self, rect: egui::Rect) -> anyhow::Result<()> {
-        let width = rect.width() as f64 + 2.0 /* default margin 1 on each side */;
+        let rect = rect + Self::WORKSPACE_MARGIN;
+        let width = rect.width() as f64;
         let width = self.window.scale_factor() * width;
         let width = width as i32;
 
@@ -164,24 +181,26 @@ impl MainWindowView {
     }
 
     fn start_host_dragging(&mut self) -> anyhow::Result<()> {
+        // start dragging mode
         self.is_dragging = true;
 
+        // get host width and height
         let rect = self.host_client_rect()?;
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
 
+        // set the cursor position to the center of the host window
         let x = rect.left + width / 2;
         let y = rect.top + height / 2;
-
         let points = &mut [POINT { x, y }];
         unsafe { MapWindowPoints(Some(self.host), None, points) };
-
         unsafe { SetCursorPos(points[0].x, points[0].y)? };
 
         Ok(())
     }
 
     fn drag_host_window(&mut self) -> anyhow::Result<()> {
+        // get current cursor pos
         let mut pos = POINT::default();
         unsafe { GetCursorPos(&mut pos) }?;
 
@@ -191,16 +210,16 @@ impl MainWindowView {
         };
 
         unsafe {
+            // release cursor capture
             ReleaseCapture()?;
 
+            // simulate left click on the host window invisible title bar
             PostMessageW(
                 Some(self.host),
                 WM_NCLBUTTONDOWN,
                 WPARAM(HTCAPTION as _),
                 LPARAM(&points as *const _ as _),
             )?;
-
-            self.is_dragging = false;
         }
 
         Ok(())
@@ -220,14 +239,8 @@ impl MainWindowView {
         }
     }
 
-    fn show_context_menu(&self) {
-        tracing::debug!("Showing context menu");
-
-        let hwnd = self.host.0 as _;
-        unsafe { self.context_menu.show_context_menu_for_hwnd(hwnd, None) };
-    }
-
     fn is_taskbar_on_top(&self) -> bool {
+        // TODO: find a more peroformant way to check this
         self.host_window_rect()
             .map(|r| {
                 let current_monitor = self.window.current_monitor();
@@ -238,6 +251,7 @@ impl MainWindowView {
     }
 
     fn is_system_dark_mode(&self) -> bool {
+        // FIXME: use egui internal dark mode detection
         self.forgreound_color
             .map(|c| c == egui::Color32::WHITE)
             .unwrap_or(false)
@@ -251,10 +265,13 @@ impl MainWindowView {
         }
     }
 
-    fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::InnerResponse<()> {
+    fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::Response {
+        // if dragging
         if self.is_dragging {
+            // change the cursor
             ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
 
+            // start dragging on the first left click
             if ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary)) {
                 if let Err(e) = self.drag_host_window() {
                     tracing::error!("Failed to start host darggign: {e}");
@@ -262,44 +279,66 @@ impl MainWindowView {
             }
         }
 
+        // show context menu on right click
         if ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Secondary)) {
             self.show_context_menu();
         }
 
         ui.horizontal_centered(|ui| {
-            let spacing = ui.style().spacing.item_spacing;
-            ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
+            ui.scope(|ui| {
+                ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-            for workspace in self.workspaces.iter() {
-                let btn = WorkspaceButton::new(workspace)
-                    .dark_mode(Some(self.is_system_dark_mode()))
-                    .line_focused_color_opt(self.line_focused_color())
-                    .text_color_opt(self.forgreound_color)
-                    .line_on_top(self.is_taskbar_on_top());
+                for workspace in self.workspaces.iter() {
+                    let btn = WorkspaceButton::new(workspace)
+                        .dark_mode(Some(self.is_system_dark_mode()))
+                        .line_focused_color_opt(self.line_focused_color())
+                        .text_color_opt(self.forgreound_color)
+                        .line_on_top(self.is_taskbar_on_top());
 
-                if ui.add(btn).clicked() && !self.is_dragging {
-                    crate::komorebi::change_workspace(workspace.idx);
+                    if ui.add(btn).clicked() && !self.is_dragging {
+                        crate::komorebi::change_workspace(workspace.idx);
+                    }
                 }
-            }
-            ui.style_mut().spacing.item_spacing = spacing;
+            })
         })
+        .response
     }
 
-    fn transparent_panel(ctx: &egui::Context) -> egui::CentralPanel {
+    fn transparent_panel(&self, ctx: &egui::Context) -> egui::CentralPanel {
+        let color = if self.is_dragging {
+            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 30)
+        } else {
+            egui::Color32::TRANSPARENT
+        };
+
         let visuals = egui::Visuals {
-            panel_fill: egui::Color32::TRANSPARENT,
-            ..Default::default()
+            panel_fill: color,
+            ..egui::Visuals::dark()
         };
         ctx.set_visuals(visuals);
 
-        let margin = egui::Margin::symmetric(1, 0);
-        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(margin);
+        let frame = egui::Frame::central_panel(&ctx.style()).inner_margin(Self::WORKSPACE_MARGIN);
 
         egui::CentralPanel::default().frame(frame)
     }
 }
 
 impl EguiView for MainWindowView {
+    fn handle_window_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        event: winit::event::WindowEvent,
+    ) -> anyhow::Result<()> {
+        // exit dragging mode on cursor enter if we are in dragging mode
+        // this is done here so the dragging mode background
+        // doesn't change until dragging is over
+        if self.is_dragging && matches!(event, WindowEvent::CursorEntered { .. }) {
+            self.is_dragging = false;
+        }
+
+        Ok(())
+    }
+
     fn handle_app_message(
         &mut self,
         _event_loop: &ActiveEventLoop,
@@ -307,8 +346,8 @@ impl EguiView for MainWindowView {
     ) -> anyhow::Result<()> {
         match message {
             AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
-            AppMessage::MenuEvent(e) if e.id() == "move" => self.start_host_dragging()?,
-            AppMessage::MenuEvent(e) if e.id() == "quit" => self.close_host()?,
+            AppMessage::MenuEvent(e) if e.id() == Self::M_MOVE_ID => self.start_host_dragging()?,
+            AppMessage::MenuEvent(e) if e.id() == Self::M_QUIT_ID => self.close_host()?,
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
             _ => {}
         }
@@ -317,10 +356,9 @@ impl EguiView for MainWindowView {
     }
 
     fn update(&mut self, ctx: &egui::Context) {
-        Self::transparent_panel(ctx).show(ctx, |ui| {
+        self.transparent_panel(ctx).show(ctx, |ui| {
             let response = self.workspaces_row(ui);
-
-            if let Err(e) = self.resize_host_to_rect(response.response.rect) {
+            if let Err(e) = self.resize_host_to_rect(response.rect) {
                 tracing::error!("Failed to resize host to rect: {e}");
             }
         });

@@ -1,3 +1,9 @@
+# Unreleased
+
+## New
+
+- Add a slightly dark transparent background when in dragging mode.
+
 # 0.4.1
 
 ## Fixed
