@@ -2,7 +2,7 @@
 
 ## Fixed
 
-- Reduce the memory usage of the app from 430mb to 110mb, hopefully more improvements in future releases.
+- Reduce the initial memory usage of the app from 430mb to 110mb, idle memory usage should be 10mb, hopefully more improvements in future releases.
 
 # 0.4.0
 
