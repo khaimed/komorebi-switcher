@@ -1,7 +1,7 @@
 [package]
 name = "komorebi-switcher"
 description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar."
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 license = "MIT"
 
@@ -37,7 +37,7 @@ egui_animation = "0.8.0"
 wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }
 
 [dependencies.windows]
-version = "0.59"
+version = "0.60"
 features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_System_LibraryLoader",
@@ -45,7 +45,6 @@ features = [
   "Win32_Graphics_Gdi",
   "Win32_UI_Input_KeyboardAndMouse",
   "UI_ViewManagement",
-  "deprecated",                       # needed for UI_ViewManagement 
   "Win32_Graphics_Direct3D",
   "Win32_Graphics_Direct3D11",
   "Win32_Graphics_Direct2D_Common",
