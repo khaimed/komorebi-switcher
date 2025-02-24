@@ -143,6 +143,9 @@ pub unsafe fn create_host(
     let mut rect = RECT::default();
     GetClientRect(taskbar_hwnd, &mut rect)?;
 
+    #[cfg(debug_assertions)]
+    let window_class = w!("komorebi-switcher-debug::host");
+    #[cfg(not(debug_assertions))]
     let window_class = w!("komorebi-switcher::host");
 
     let wc = WNDCLASSW {

@@ -38,13 +38,18 @@ impl App {
         let parent = unsafe { NonZero::new_unchecked(host.0 as _) };
         let parent = Win32WindowHandle::new(parent);
         let parent = RawWindowHandle::Win32(parent);
-
         attrs = unsafe { attrs.with_parent_window(Some(parent)) };
+
+        #[cfg(debug_assertions)]
+        let class_name = "komorebi-switcher-debug::window";
+        #[cfg(not(debug_assertions))]
+        let class_name = "komorebi-switcher::window";
+
         attrs = attrs
             .with_decorations(false)
             .with_transparent(true)
             .with_active(false)
-            .with_class_name("komorebi-switcher::window")
+            .with_class_name(class_name)
             .with_undecorated_shadow(false)
             .with_no_redirection_bitmap(true)
             .with_clip_children(false);
