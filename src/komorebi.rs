@@ -231,6 +231,9 @@ pub fn change_workspace(idx: usize) {
     }
 }
 
+#[cfg(debug_assertions)]
+const SOCK_NAME: &str = "komorebi-switcher-debug.sock";
+#[cfg(not(debug_assertions))]
 const SOCK_NAME: &str = "komorebi-switcher.sock";
 
 pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
