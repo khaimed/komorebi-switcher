@@ -1,3 +1,9 @@
+# Unreleased
+
+## New
+
+- Remove logs older than a month.
+
 # 0.4.2
 
 ## New
