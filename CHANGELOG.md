@@ -1,12 +1,19 @@
 # Unreleased
 
-## New
+## Added
 
 - Remove logs older than a month.
 
+## Fixed
+
+- Fixed dragging mode sometimes not working.
+
+  There is still a bug that entering drag mode consecutively won't work, you need to left-click a workspace at least one time
+  before entering drag mode again.
+
 # 0.4.2
 
-## New
+## Added
 
 - Add a slightly dark transparent background when in dragging mode.
 
@@ -18,7 +25,7 @@
 
 # 0.4.0
 
-## New
+## Added
 
 - Added animations for active and non-empty workspace indicator.
 - Added thin border around active and hovered workspace, in attempt to closely match with taskbar buttons style.
@@ -34,13 +41,13 @@
 - Reconnect to komorebi if socket is closed
 - Fix Alt+Tab through windows on different workspaces not changing in the switcher.
 
-## New
+## Added
 
 - Add logging, saved in `%APPDATA%\komorebi-switcher`
 
 # 0.3.0
 
-## New
+## Added
 
 - New look that fits better with Windows 11 style.
 - Clamp the switcher position in x direction so it always stays visible within the taskbar.
@@ -54,7 +61,7 @@
 
 # 0.2.0
 
-## New
+## Added
 
 - Use system accent Color
 - Show context menu when right clicking

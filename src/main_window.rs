@@ -71,13 +71,23 @@ impl App {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+enum DraggingState {
+    /// Not in drag mode
+    None,
+    /// In drag mode but user hasn't started dragging yet
+    Started,
+    /// In drag mode and actually dragging
+    Dragging,
+}
+
 pub struct MainWindowView {
     window: Arc<Window>,
     host: HWND,
     curr_width: i32,
     workspaces: Vec<crate::komorebi::Workspace>,
     context_menu: muda::Menu,
-    is_dragging: bool,
+    dragging_state: DraggingState,
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
     forgreound_color: Option<egui::Color32>,
@@ -93,7 +103,7 @@ impl MainWindowView {
             curr_width: 0,
             workspaces,
             context_menu: Self::create_context_menu()?,
-            is_dragging: false,
+            dragging_state: DraggingState::None,
             accent_color: None,
             accent_light2_color: None,
             forgreound_color: None,
@@ -187,7 +197,7 @@ impl MainWindowView {
 
     fn start_host_dragging(&mut self) -> anyhow::Result<()> {
         // start dragging mode
-        self.is_dragging = true;
+        self.dragging_state = DraggingState::Started;
 
         // get host width and height
         let rect = self.host_client_rect()?;
@@ -272,12 +282,13 @@ impl MainWindowView {
 
     fn workspaces_row(&mut self, ui: &mut egui::Ui) -> egui::Response {
         // if dragging
-        if self.is_dragging {
+        if self.dragging_state == DraggingState::Started {
             // change the cursor
             ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeColumn);
 
             // start dragging on the first left click
             if ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary)) {
+                self.dragging_state = DraggingState::Dragging;
                 if let Err(e) = self.drag_host_window() {
                     tracing::error!("Failed to start host darggign: {e}");
                 }
@@ -300,7 +311,7 @@ impl MainWindowView {
                         .text_color_opt(self.forgreound_color)
                         .line_on_top(self.is_taskbar_on_top());
 
-                    if ui.add(btn).clicked() && !self.is_dragging {
+                    if ui.add(btn).clicked() && self.dragging_state == DraggingState::None {
                         crate::komorebi::change_workspace(workspace.idx);
                     }
                 }
@@ -310,8 +321,8 @@ impl MainWindowView {
     }
 
     fn transparent_panel(&self, ctx: &egui::Context) -> egui::CentralPanel {
-        let color = if self.is_dragging {
-            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 30)
+        let color = if self.dragging_state != DraggingState::None {
+            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 125)
         } else {
             egui::Color32::TRANSPARENT
         };
@@ -337,8 +348,10 @@ impl EguiView for MainWindowView {
         // exit dragging mode on cursor enter if we are in dragging mode
         // this is done here so the dragging mode background
         // doesn't change until dragging is over
-        if self.is_dragging && matches!(event, WindowEvent::CursorEntered { .. }) {
-            self.is_dragging = false;
+        if self.dragging_state == DraggingState::Dragging
+            && matches!(event, WindowEvent::CursorEntered { .. })
+        {
+            self.dragging_state = DraggingState::None;
         }
 
         Ok(())
