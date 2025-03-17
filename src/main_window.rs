@@ -118,12 +118,10 @@ impl MainWindowView {
 
     const M_MOVE_ID: &str = "move";
     const M_QUIT_ID: &str = "quit";
-    const M_DEBUG_ID: &str = "debug";
 
     fn create_context_menu() -> anyhow::Result<muda::Menu> {
         muda::Menu::with_items(&[
             &muda::MenuItem::with_id(Self::M_MOVE_ID, "Move", true, None),
-            &muda::CheckMenuItem::with_id(Self::M_DEBUG_ID, "Debugging", true, false, None),
             &muda::MenuItem::with_id(Self::M_QUIT_ID, "Quit", true, None),
         ])
         .map_err(Into::into)
@@ -369,15 +367,6 @@ impl EguiView for MainWindowView {
         match message {
             AppMessage::UpdateWorkspaces(workspaces) => self.workspaces = workspaces.clone(),
             AppMessage::MenuEvent(e) if e.id() == Self::M_MOVE_ID => self.start_host_dragging()?,
-            AppMessage::MenuEvent(e) if e.id() == Self::M_DEBUG_ID => {
-                let items = self.context_menu.items();
-                let Some(item) = items.iter().find(|i| i.id() == e.id()) else {
-                    return Ok(());
-                };
-                let item = item.as_check_menuitem_unchecked();
-                let is_checked = item.is_checked();
-                ctx.set_debug_on_hover(is_checked);
-            }
             AppMessage::MenuEvent(e) if e.id() == Self::M_QUIT_ID => self.close_host()?,
             AppMessage::SystemSettingsChanged => self.update_system_colors()?,
             _ => {}
