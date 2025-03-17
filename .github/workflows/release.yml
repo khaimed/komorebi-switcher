@@ -22,19 +22,13 @@ jobs:
           scoop bucket add extras
           scoop install nsis
 
-      - run: cargo build --release
-      - run: mv ./target/release/komorebi-switcher.exe komorebi-switcher.exe
-
-      - name: create zip for exe
-        run: Compress-Archive komorebi-switcher.exe komorebi-switcher.zip
-
-      - run: makensis /V4 installer.nsi
+      - run: ./.scripts/create-installer.ps1
 
       - name: generate checksums.txt
         run: |
-          echo "$((Get-FileHash komorebi-switcher.exe).Hash.ToLower())  komorebi-switcher.exe" >> checksums.txt
-          echo "$((Get-FileHash komorebi-switcher.zip).Hash.ToLower())  komorebi-switcher.zip" >> checksums.txt
-          echo "$((Get-FileHash komorebi-switcher-setup.exe).Hash.ToLower())  komorebi-switcher-setup.exe" >> checksums.txt
+          echo "$((Get-FileHash ./dist/komorebi-switcher.exe).Hash.ToLower())  komorebi-switcher.exe" >> checksums.txt
+          echo "$((Get-FileHash ./dist/komorebi-switcher.zip).Hash.ToLower())  komorebi-switcher.zip" >> checksums.txt
+          echo "$((Get-FileHash ./dist/komorebi-switcher-setup.exe).Hash.ToLower())  komorebi-switcher-setup.exe" >> checksums.txt
       
       - name: generate release notes
         run: .scripts/generate-release-notes.ps1
@@ -44,6 +38,6 @@ jobs:
         with:
           body_path: CHANGELOG.md
           files: |
-            *.exe
-            *.zip
-            checksums.txt
+            ./dist/*.exe
+            ./dist/*.zip
+            ./checksums.txt
