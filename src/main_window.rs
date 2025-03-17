@@ -360,7 +360,7 @@ impl EguiView for MainWindowView {
 
     fn handle_app_message(
         &mut self,
-        ctx: &egui::Context,
+        _ctx: &egui::Context,
         _event_loop: &ActiveEventLoop,
         message: &AppMessage,
     ) -> anyhow::Result<()> {
