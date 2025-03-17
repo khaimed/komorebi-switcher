@@ -60,7 +60,8 @@ impl EguiWindow {
             self.handle_resized(size);
         }
 
-        self.view.handle_window_event(event_loop, event)
+        let ctx = self.surface.egui_renderer.egui_ctx();
+        self.view.handle_window_event(ctx, event_loop, event)
     }
 
     pub fn handle_redraw(&mut self) -> anyhow::Result<()> {

@@ -3,6 +3,7 @@
 ## Added
 
 - Remove logs older than a month.
+- Added a menu item to enter debugging mode.
 
 ## Fixed
 

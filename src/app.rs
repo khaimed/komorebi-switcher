@@ -51,7 +51,8 @@ impl ApplicationHandler<AppMessage> for App {
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
         for window in self.windows.values_mut() {
-            if let Err(e) = window.view.handle_app_message(event_loop, &event) {
+            let ctx = window.surface.egui_renderer.egui_ctx();
+            if let Err(e) = window.view.handle_app_message(ctx, event_loop, &event) {
                 tracing::error!("Error while handling AppMessage: {e}")
             }
 

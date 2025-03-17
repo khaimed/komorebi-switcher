@@ -6,6 +6,7 @@ use crate::app::AppMessage;
 pub trait EguiView {
     fn handle_app_message(
         &mut self,
+        _ctx: &egui::Context,
         event_loop: &ActiveEventLoop,
         message: &AppMessage,
     ) -> anyhow::Result<()> {
@@ -16,6 +17,7 @@ pub trait EguiView {
 
     fn handle_window_event(
         &mut self,
+        _ctx: &egui::Context,
         event_loop: &ActiveEventLoop,
         event: WindowEvent,
     ) -> anyhow::Result<()> {

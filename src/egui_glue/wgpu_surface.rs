@@ -15,7 +15,7 @@ pub struct WgpuSurface {
     surface_config: wgpu::SurfaceConfiguration,
     surface: wgpu::Surface<'static>,
     scale_factor: f32,
-    egui_renderer: EguiRenderer,
+    pub egui_renderer: EguiRenderer,
     #[allow(unused)]
     dx12_surface: Dx12Surface,
 }
