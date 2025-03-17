@@ -15,4 +15,4 @@ New-Item -Force "dist" -Type Directory > $null
 Move-Item -Force "installer/komorebi-switcher.exe" "dist/komorebi-switcher.exe"
 Move-Item -Force "installer/komorebi-switcher-setup.exe" "dist/komorebi-switcher-setup.exe"
 
-Compress-Archive "dist/komorebi-switcher.exe" "dist/komorebi-switcher.zip"
+Compress-Archive -Update "dist/komorebi-switcher.exe" "dist/komorebi-switcher.zip"
