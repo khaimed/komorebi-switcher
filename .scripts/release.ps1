@@ -7,7 +7,7 @@ $path = "installer.nsi"
 (Get-Content $path) -replace "VERSION `"[0-9]+.[0-9]+.[0-9]+`"", "VERSION `"$version`"" | Set-Content $path
 
 $path = "CHANGELOG.md"
-(Get-Content $path) -replace "# Unreleased", "# $version" | Set-Content $path
+(Get-Content $path) -replace "## [Unreleased]", "## [$version]" | Set-Content $path
 
 Start-Sleep -Seconds 2
 
