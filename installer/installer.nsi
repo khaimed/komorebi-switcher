@@ -17,11 +17,9 @@ RequestExecutionLevel user
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define VERSION "0.4.2"
 
-Var AppStartMenuFolder
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
-!insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_FINISHPAGE_SHOWREADME
@@ -55,10 +53,7 @@ Section
     IntFmt $0 "0x%08X" $0
     WriteRegDWORD HKCU "${UNINSTKEY}" "EstimatedSize" "$0"
 
-    !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
-        CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
-        CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}"
-    !insertmacro MUI_STARTMENU_WRITE_END
+    CreateShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}"
 SectionEnd
 
 Section Uninstall
@@ -66,9 +61,7 @@ Section Uninstall
 
     Delete "$INSTDIR\uninstall.exe"
 
-    !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
-    Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
 
     Delete "$DESKTOP\${PRODUCTNAME}.lnk"
 
