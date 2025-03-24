@@ -1,14 +1,14 @@
 [package]
 name = "komorebi-switcher"
 description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar."
-authors = ["amrbashir <github@amrbashir.me>"]
+authors = ["Amr Bashir <contact@amrbashir.me>"]
 version = "0.4.2"
 edition = "2021"
 license = "MIT"
 
 [package.metadata.winresource]
-CompanyName = "amrbashir"
-LegalCopyright = "© 2025 amrbashir. Licensed under the MIT License."
+CompanyName = "Amr Bashir"
+LegalCopyright = "© 2025 Amr Bashir. Licensed under the MIT License."
 
 [profile.release]
 codegen-units = 1 # Allows LLVM to perform better optimization.
