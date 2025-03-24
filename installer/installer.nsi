@@ -11,12 +11,19 @@ InstallDir "$LOCALAPPDATA\komorebi-switcher"
 
 RequestExecutionLevel user
 
-
 !define PRODUCTNAME "komorebi-switcher"
 !define MAINBINARYNAME "komorebi-switcher.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define VERSION "0.4.2"
+!define PUBLISHER "amrbashir"
 
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey "ProductName" "${PRODUCTNAME}"
+VIAddVersionKey "FileDescription" "${PRODUCTNAME}"
+VIAddVersionKey "FileVersion" "${VERSION}.0"
+VIAddVersionKey "ProductVersion" "${VERSION}"
+VIAddVersionKey "CompanyName" "${PUBLISHER}"
+VIAddVersionKey "LegalCopyright" "© 2025 amrbashir. Licensed under the MIT License."
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY

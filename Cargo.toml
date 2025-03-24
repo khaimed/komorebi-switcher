@@ -1,9 +1,14 @@
 [package]
 name = "komorebi-switcher"
 description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar."
+authors = ["amrbashir <github@amrbashir.me>"]
 version = "0.4.2"
 edition = "2021"
 license = "MIT"
+
+[package.metadata.winresource]
+CompanyName = "amrbashir"
+LegalCopyright = "© 2025 amrbashir. Licensed under the MIT License."
 
 [profile.release]
 codegen-units = 1 # Allows LLVM to perform better optimization.
@@ -11,6 +16,9 @@ lto = true        # Enables link-time-optimizations.
 opt-level = "s"   # Prioritizes small binary size.
 panic = "abort"   # Higher performance by disabling panic handlers.
 strip = true      # Ensures debug symbols are removed.
+
+[build-dependencies]
+winresource = "0.1"
 
 [dependencies]
 anyhow = "1"
@@ -31,7 +39,8 @@ strum = { version = "0.27", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-egui_animation = "0.8.0"
+egui_animation = "0.8"
+
 
 [patch.crates-io]
 wgpu = { git = "https://github.com/gfx-rs/wgpu", rev = "2f607d3e64d5da618b30c084fb59cf3abacf9aa1" }
