@@ -55,7 +55,6 @@ impl<T> Ring<T> {
 
 #[derive(Debug, Deserialize)]
 struct KMonitor {
-    name: String,
     workspaces: Ring<KWorkspace>,
 }
 
@@ -283,8 +282,6 @@ pub fn listen_for_workspaces(proxy: EventLoopProxy<AppMessage>) {
         let Ok(value) = serde_json::from_slice::<serde_json::Value>(&buffer) else {
             continue;
         };
-
-        dbg!(&value);
 
         tracing::debug!(
             "Received an event from komorebi: {}",
