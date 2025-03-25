@@ -8,7 +8,7 @@ $path = "installer/installer.nsi"
 
 $path = "CHANGELOG.md"
 $date = Get-Date -Format "yyyy-MM-dd"
-(Get-Content $path) -replace "## [Unreleased]", "## [$version] - $date" | Set-Content $path
+(Get-Content $path) -replace "## \[Unreleased\]", "## [Unreleased]`n`n## [$version] - $date" | Set-Content $path
 
 Start-Sleep -Seconds 2
 
