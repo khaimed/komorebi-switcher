@@ -22,6 +22,7 @@ jobs:
           scoop bucket add extras
           scoop install nsis
 
+      - run: ./.scripts/build.ps1
       - run: ./.scripts/create-installer.ps1
 
       - name: generate checksums.txt
