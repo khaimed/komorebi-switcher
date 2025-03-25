@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-03-25
+
 ### Added
 
 - Added an icon to executable and installer.
