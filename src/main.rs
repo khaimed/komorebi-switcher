@@ -13,6 +13,7 @@ mod egui_glue;
 mod host;
 mod komorebi;
 mod main_window;
+mod tray_icon;
 mod widgets;
 
 fn run() -> anyhow::Result<()> {

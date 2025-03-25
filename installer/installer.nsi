@@ -5,6 +5,7 @@ ManifestDPIAware true
 ManifestDPIAwareness PerMonitorV2
 SetCompressor /SOLID lzma
 InstallDir "$LOCALAPPDATA\komorebi-switcher"
+Icon "icon.ico"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
@@ -25,6 +26,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "CompanyName" "${PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "© 2025 ${PUBLISHER}. Licensed under the MIT License."
 
+!define MUI_ICON "icon.ico"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES

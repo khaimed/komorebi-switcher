@@ -20,6 +20,7 @@ pub struct App {
     pub proxy: EventLoopProxy<AppMessage>,
     pub taskbar_hwnd: HWND,
     pub windows: HashMap<WindowId, EguiWindow>,
+    pub tray_icon: Option<crate::tray_icon::TrayIcon>,
 }
 
 impl App {
@@ -29,11 +30,14 @@ impl App {
             ..Default::default()
         });
 
+        let tray_icon = crate::tray_icon::TrayIcon::new().ok();
+
         Self {
             wgpu_instance,
             taskbar_hwnd,
             windows: Default::default(),
             proxy,
+            tray_icon,
         }
     }
 }
@@ -51,6 +55,10 @@ impl ApplicationHandler<AppMessage> for App {
     fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: AppMessage) {
+        if let Some(tray) = &self.tray_icon {
+            tray.handle_app_message(event_loop, &event);
+        }
+
         for window in self.windows.values_mut() {
             let ctx = window.surface.egui_renderer.egui_ctx();
             if let Err(e) = window.view.handle_app_message(ctx, event_loop, &event) {

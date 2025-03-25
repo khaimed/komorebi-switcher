@@ -119,7 +119,9 @@ impl MainWindowView {
         Ok(view)
     }
 
+    /// The ID of the "Move" menu item.
     const M_MOVE_ID: &str = "move";
+    /// The ID of the "Quit" menu item.
     const M_QUIT_ID: &str = "quit";
 
     fn create_context_menu() -> anyhow::Result<muda::Menu> {

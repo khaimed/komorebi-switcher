@@ -1,3 +1,5 @@
+<p align="center"><img src="./assets/icon.svg" width="125" /></p>
+
 # komorebi-switcher
 
 A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komorebi/) tiling window manager, seamlessly integrated the Windows 10/11 taskbar.

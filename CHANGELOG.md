@@ -4,6 +4,8 @@
 
 ### Added
 
+- Added an icon to executable and installer.
+- Added a tray icon.
 - Remove logs older than a month.
 
 ### Fixed
