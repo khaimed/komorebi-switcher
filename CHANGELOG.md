@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-04-07
+
 ### Changed
 
 - The `Move` context menu item has been renamed to `Move & Resize`

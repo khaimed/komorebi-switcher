@@ -15,7 +15,7 @@ RequestExecutionLevel user
 !define PRODUCTNAME "komorebi-switcher"
 !define MAINBINARYNAME "komorebi-switcher.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
-!define VERSION "0.5.0"
+!define VERSION "0.6.0"
 !define PUBLISHER "Amr Bashir"
 
 VIProductVersion "${VERSION}.0"
