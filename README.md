@@ -11,7 +11,10 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
 
 - <kbd>Left Click</kbd> any workspace to switch to it.
 - <kbd>Right Click</kbd> to open the context menu:
-  - **Move**: enter dragging mode, <kbd>Left Click</kbd> and move your mouse to adjust the switcher position
+  - **Move & Resize**: Open the move and resize dialog.
+    
+    ![430847504-b1839a40-df9e-4685-aaeb-07410e9c379c](https://github.com/user-attachments/assets/20becf18-7e0c-4b9f-9de6-11ac79ef8408)
+
   - **Quit**: close the switcher
 
 ## Development
