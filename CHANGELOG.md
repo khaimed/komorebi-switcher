@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-04-08
+
 ### Changed
 
 - Set window title for resize and move dialog.
