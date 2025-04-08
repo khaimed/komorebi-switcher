@@ -23,6 +23,7 @@ impl App {
         let class_name = "komorebi-switcher::resize-window";
 
         let attrs = WindowAttributes::default()
+            .with_title("Move and Resize")
             .with_class_name(class_name)
             .with_inner_size(PhysicalSize::new(300, 200))
             .with_owner_window(host.0 as _)
