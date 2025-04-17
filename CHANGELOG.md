@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-04-17
+
 ### Fixed
 
 - Fixed reading workspaces failing with komorebi v0.1.36
