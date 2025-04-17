@@ -12,12 +12,28 @@ use winit::event_loop::EventLoopProxy;
 use crate::app::AppMessage;
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum MaybeRingOrVec<T> {
+    Ring(Ring<T>),
+    Vec(Vec<T>),
+}
+
+impl<T> MaybeRingOrVec<T> {
+    fn is_empty(&self) -> bool {
+        match self {
+            MaybeRingOrVec::Ring(ring) => ring.is_empty(),
+            MaybeRingOrVec::Vec(vec) => vec.is_empty(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct KWorkspace {
     name: Option<String>,
     containers: Ring<serde_json::Value>,
     maximized_window: Option<serde_json::Value>,
     monocle_container: Option<serde_json::Value>,
-    floating_windows: Vec<serde_json::Value>,
+    floating_windows: MaybeRingOrVec<serde_json::Value>,
 }
 
 impl KWorkspace {

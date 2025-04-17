@@ -94,7 +94,11 @@ impl MainWindowView {
         proxy: EventLoopProxy<AppMessage>,
         window_info: WindowRegistryInfo,
     ) -> anyhow::Result<Self> {
-        let workspaces = crate::komorebi::read_workspaces().unwrap_or_default();
+        let workspaces = crate::komorebi::read_workspaces()
+            .inspect_err(|e| {
+                tracing::error!("Failed to read workspaces: {e}");
+            })
+            .unwrap_or_default();
 
         let mut view = Self {
             window,
