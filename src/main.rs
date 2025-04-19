@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fmt::Display;
+
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
 use windows::core::*;
@@ -17,6 +19,15 @@ mod resize_window;
 mod tray_icon;
 mod widgets;
 mod window_registry_info;
+
+fn error_dialog<T: Display>(error: T) {
+    rfd::MessageDialog::new()
+        .set_title("komorebi-switcher")
+        .set_description(error.to_string())
+        .set_level(rfd::MessageLevel::Error)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+}
 
 fn run() -> anyhow::Result<()> {
     let evl = EventLoop::<AppMessage>::with_user_event().build()?;
@@ -99,10 +110,12 @@ fn main() -> anyhow::Result<()> {
     tracing::debug!("Initialized Logger");
 
     std::panic::set_hook(Box::new(|info| {
+        error_dialog(info);
         tracing::error!("{info}");
     }));
 
     if let Err(e) = run() {
+        error_dialog(&e);
         tracing::error!("{e}");
         std::process::exit(1);
     }

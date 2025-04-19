@@ -41,6 +41,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
 egui_animation = "0.8"
+rfd = "0.15.3"
 
 
 [patch.crates-io]
