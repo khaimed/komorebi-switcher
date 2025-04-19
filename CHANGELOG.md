@@ -6,7 +6,7 @@
 
 ## Added
 
-- Report panicking errors in a dialog box instead of silentely closing the app.
+- Report panicking errors in a dialog box instead of silently closing the app.
 
 ## [0.6.3] - 2025-04-19
 
