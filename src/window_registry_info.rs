@@ -47,8 +47,14 @@ impl WindowRegistryInfo {
 
         let x = get_str(&key, WINDOW_POS_X_KEY, defaults.x);
         let y = get_str(&key, WINDOW_POS_Y_KEY, defaults.y);
-        let width = get_str(&key, WINDOW_SIZE_WIDTH_KEY, defaults.width);
-        let height = get_str(&key, WINDOW_SIZE_HEIGHT_KEY, defaults.height);
+        let mut width = get_str(&key, WINDOW_SIZE_WIDTH_KEY, defaults.width);
+        if width < 0 {
+            width = defaults.width;
+        }
+        let mut height = get_str(&key, WINDOW_SIZE_HEIGHT_KEY, defaults.height);
+        if height < 0 {
+            height = defaults.height;
+        }
         let auto_width = get_bool(&key, WINDOW_SIZE_AUTO_WIDTH_KEY, defaults.auto_width);
         let auto_height = get_bool(&key, WINDOW_SIZE_AUTO_HEIGHT_KEY, defaults.auto_height);
 
@@ -72,8 +78,12 @@ impl WindowRegistryInfo {
         let key = CURRENT_USER.create(APP_REG_KEY)?;
         key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
         key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
-        key.set_string(WINDOW_SIZE_WIDTH_KEY, &self.width.to_string())?;
-        key.set_string(WINDOW_SIZE_HEIGHT_KEY, &self.height.to_string())?;
+        if self.width > 0 {
+            key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
+        }
+        if self.height > 0 {
+            key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
+        }
         key.set_u32(WINDOW_SIZE_AUTO_WIDTH_KEY, self.auto_width as _)?;
         key.set_u32(WINDOW_SIZE_AUTO_HEIGHT_KEY, self.auto_height as _)?;
 

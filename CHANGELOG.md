@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed failure to start sometimes when saved width or height is zero.
+
 ## [0.6.2] - 2025-04-17
 
 ### Fixed
