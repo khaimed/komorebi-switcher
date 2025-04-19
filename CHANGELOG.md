@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.4] - 2025-04-19
+
 ## Added
 
 - Report panicking errors in a dialog box instead of silentely closing the app.
