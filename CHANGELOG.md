@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-05-12
+
 ## Added
 
 - Added support for multi monitor
