@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-05-15
+
 ## Fixed
 
 - Fixed failing to create switcher due to failure while deserializaing komorebi monitor information
