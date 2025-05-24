@@ -119,7 +119,7 @@ impl SwitcherWindowView {
 
     fn create_context_menu() -> anyhow::Result<ContextMenuState> {
         let quit = MenuItem::new("Quit", true, None);
-        let move_resize = MenuItem::new("Move & Resize", true, None);
+        let move_resize = MenuItem::new("Move && Resize", true, None);
         let menu = Menu::with_items(&[&move_resize, &quit])?;
         Ok(ContextMenuState {
             menu,

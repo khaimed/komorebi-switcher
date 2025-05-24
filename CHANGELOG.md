@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## Fixed
+
+- Fixed menu items showing `Move Resize` instead of `Move & Resize`.
+
+## Changed
+
+- Changed the displayed name of switchers in the `Move & Resize` menu item in tray, for example `Display 1 - H4CR800751P` instead of just `H4CR800751P`.
+
 ## [0.7.1] - 2025-05-15
 
 ## Fixed

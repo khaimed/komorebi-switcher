@@ -156,6 +156,8 @@ pub fn listen_for_state(proxy: EventLoopProxy<AppMessage>) {
             }
         };
 
+        tracing::trace!("Received komorebi message: {value}");
+
         tracing::debug!(
             "Received an event from komorebi: {}",
             value

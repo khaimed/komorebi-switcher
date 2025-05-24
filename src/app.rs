@@ -146,9 +146,14 @@ impl App {
                     tray.destroy_items_for_switchers()?;
 
                     let switchers_ids = self
-                        .windows
+                        .komorebi_state
+                        .monitors
                         .iter()
-                        .filter_map(|(_, (key, _))| key.clone())
+                        .filter_map(|m| {
+                            self.windows
+                                .contains_key_alt(&Some(m.id.clone()))
+                                .then(|| format!("{}-{}", m.name, m.id))
+                        })
                         .collect::<Vec<_>>();
                     tray.create_items_for_switchers(switchers_ids)?;
                 }

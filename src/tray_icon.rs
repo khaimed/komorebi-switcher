@@ -21,7 +21,7 @@ impl TrayIcon {
         let icon = tray_icon::Icon::from_resource(1, Some((32, 32)))?;
 
         let quit = MenuItem::new("Quit", true, None);
-        let move_resize = Submenu::new("Move & Resize", true);
+        let move_resize = Submenu::new("Move && Resize", true);
         let menu = Menu::with_items(&[&move_resize, &quit])?;
 
         TrayIconBuilder::new()
