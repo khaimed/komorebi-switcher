@@ -1,3 +1,6 @@
+mod multi_map;
+
+pub use multi_map::MultiMap;
 use windows::core::*;
 use windows::Win32::Foundation::*;
 use windows::Win32::UI::WindowsAndMessaging::*;

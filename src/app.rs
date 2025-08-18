@@ -5,8 +5,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::WindowId;
 
 use crate::egui_glue::EguiWindow;
-use crate::multi_map::MultiMap;
-use crate::utils::RECTExt;
+use crate::utils::{MultiMap, RECTExt};
 use crate::window_registry_info::WindowRegistryInfo;
 
 #[derive(Debug, Clone)]
