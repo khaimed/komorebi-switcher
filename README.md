@@ -9,7 +9,11 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
 
 ## Install
 
-[<img src='https://github.com/ycngmn/Nobook/blob/e2a7fa98e460ce8ebb241ea1e7bda2ebb33e05c0/images/get-it-on-github.png' alt='Get it on GitHub' height = "90">](https://github.com/amrbashir/komorebi-switcher/releases/latest)
+<a href="https://github.com/amrbashir/komorebi-switcher/releases/latest">
+  <picture>
+    <img alt="Get it on GitHub" src="https://github.com/LawnchairLauncher/lawnchair/blob/7336b4a0481406ff9ddd3f6c95ea05830890b1dc/docs/assets/badge-github.png" height="60">
+  </picture>
+</a>
 
 Or through PowerShell:
 
