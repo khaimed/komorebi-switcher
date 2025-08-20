@@ -2,29 +2,29 @@
 
 ## [Unreleased]
 
-## Fixed
+### Fixed
 
 - Fixed menu items showing `Move Resize` instead of `Move & Resize`.
 
-## Changed
+### Changed
 
 - Changed the displayed name of switchers in the `Move & Resize` menu item in tray, for example `Display 1 - H4CR800751P` instead of just `H4CR800751P`.
 
 ## [0.7.1] - 2025-05-15
 
-## Fixed
+### Fixed
 
 - Fixed failing to create switcher due to failure while deserializaing komorebi monitor information
 
 ## [0.7.0] - 2025-05-12
 
-## Added
+### Added
 
 - Added support for multi monitor
 
 ## [0.6.4] - 2025-04-19
 
-## Added
+### Added
 
 - Report panicking errors in a dialog box instead of silently closing the app.
 
