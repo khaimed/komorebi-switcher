@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.7.2] - 2025-08-24
+
 ### Fixed
 
 - Fixed menu items showing `Move Resize` instead of `Move & Resize`.
