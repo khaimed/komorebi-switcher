@@ -5,6 +5,7 @@
 ### Fixed
 
 - Fixed menu items showing `Move Resize` instead of `Move & Resize`.
+- Fixed a bug that incorrectly identify which taskbar belongs to which monitor, this led to the switcher displayed in incorrect position in multi-monitor setup.
 
 ### Changed
 
