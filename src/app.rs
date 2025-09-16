@@ -149,11 +149,8 @@ impl App {
                         .komorebi_state
                         .monitors
                         .iter()
-                        .filter_map(|m| {
-                            self.windows
-                                .contains_key_alt(&Some(m.id.clone()))
-                                .then(|| format!("{}-{}", m.name, m.id))
-                        })
+                        .filter(|m| self.windows.contains_key_alt(&Some(m.id.clone())))
+                        .map(|m| format!("{}-{}", m.name, m.id))
                         .collect::<Vec<_>>();
                     tray.create_items_for_switchers(switchers_ids)?;
                 }

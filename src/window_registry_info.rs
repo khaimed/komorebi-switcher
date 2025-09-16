@@ -72,14 +72,14 @@ impl WindowRegistryInfo {
 
         let key = CURRENT_USER.create(APP_REG_KEY)?;
         let key = key.create(switcher_subkey)?;
-        key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
-        key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
+        key.set_string(WINDOW_POS_X_KEY, self.x.to_string())?;
+        key.set_string(WINDOW_POS_Y_KEY, self.y.to_string())?;
         // avoid saving zero/negative width and height
         if self.width > 0 {
-            key.set_string(WINDOW_POS_X_KEY, &self.x.to_string())?;
+            key.set_string(WINDOW_POS_X_KEY, self.x.to_string())?;
         }
         if self.height > 0 {
-            key.set_string(WINDOW_POS_Y_KEY, &self.y.to_string())?;
+            key.set_string(WINDOW_POS_Y_KEY, self.y.to_string())?;
         }
         key.set_u32(WINDOW_SIZE_AUTO_WIDTH_KEY, self.auto_width as _)?;
         key.set_u32(WINDOW_SIZE_AUTO_HEIGHT_KEY, self.auto_height as _)?;
@@ -131,7 +131,7 @@ fn get_str(k: &windows_registry::Key, key: &str, default: i32) -> i32 {
     k.get_string(key)
         .inspect_err(|_| {
             tracing::warn!("Registry {key} not found, creating it with default value: {default}");
-            let _ = k.set_string(key, &default.to_string());
+            let _ = k.set_string(key, default.to_string());
         })
         .map_err(|e| anyhow::anyhow!(e))
         .and_then(|v| v.parse::<i32>().map_err(Into::into))
