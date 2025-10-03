@@ -3,9 +3,9 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 use windows_registry::CURRENT_USER;
 
 #[cfg(debug_assertions)]
-const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher-debug";
+const APP_REG_KEY: &str = "SOFTWARE\\khaimed\\glazewm-switcher-debug";
 #[cfg(not(debug_assertions))]
-const APP_REG_KEY: &str = "SOFTWARE\\amrbashir\\komorebi-switcher";
+const APP_REG_KEY: &str = "SOFTWARE\\khaimed\\glazewm-switcher";
 
 const WINDOW_POS_X_KEY: &str = "window-pos-x";
 const WINDOW_POS_Y_KEY: &str = "window-pos-y";

@@ -1,14 +1,14 @@
 [package]
-name = "komorebi-switcher"
-version = "0.7.2"
-description = "A minimal workspace switcher for the Komorebi tiling window manager, seamlessly integrated into Windows 10/11 taskbar."
-authors = ["Amr Bashir <contact@amrbashir.me>"]
+name = "glazewm-switcher"
+version = "0.1.0"
+description = "A minimal workspace switcher for GlazeWM tiling window manager, seamlessly integrated into Windows 10/11 taskbar."
+authors = ["khaimed"]
 edition = "2021"
 license = "MIT"
 
 [package.metadata.winresource]
-CompanyName = "Amr Bashir"
-LegalCopyright = "© 2025 Amr Bashir. Licensed under the MIT License."
+CompanyName = "khaimed"
+LegalCopyright = "© 2025 khaimed. Original by Amr Bashir (MIT)."
 
 [profile.release]
 codegen-units = 1 # Allows LLVM to perform better optimization.

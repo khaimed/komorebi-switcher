@@ -1260,6 +1260,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "glazewm-switcher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "egui_animation",
+ "muda",
+ "pollster",
+ "raw-window-handle",
+ "rfd",
+ "serde",
+ "serde_json",
+ "strum 0.27.2",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "tray-icon",
+ "uds_windows",
+ "wgpu",
+ "windows 0.61.3",
+ "windows-registry",
+ "winit",
+ "winresource",
+]
+
+[[package]]
 name = "glib"
 version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1707,35 +1736,6 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
-
-[[package]]
-name = "komorebi-switcher"
-version = "0.7.2"
-dependencies = [
- "anyhow",
- "dirs",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "egui_animation",
- "muda",
- "pollster",
- "raw-window-handle",
- "rfd",
- "serde",
- "serde_json",
- "strum 0.27.2",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "tray-icon",
- "uds_windows",
- "wgpu",
- "windows 0.61.3",
- "windows-registry",
- "winit",
- "winresource",
-]
 
 [[package]]
 name = "lazy_static"

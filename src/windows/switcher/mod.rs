@@ -17,6 +17,7 @@ use crate::egui_glue::{EguiView, EguiWindow};
 use crate::taskbar::Taskbar;
 use crate::widgets::WorkspaceButton;
 use crate::window_registry_info::WindowRegistryInfo;
+use crate::options::Options;
 
 mod host;
 
@@ -25,7 +26,9 @@ impl App {
         &mut self,
         event_loop: &ActiveEventLoop,
         taskbar: Taskbar,
-        monitor_state: crate::komorebi::Monitor,
+        monitor_state: crate::state::Monitor,
+        options: Options,
+        change_workspace_fn: fn(usize, usize),
     ) -> anyhow::Result<EguiWindow> {
         let window_info = WindowRegistryInfo::load(&monitor_state.id)?;
 
@@ -40,9 +43,9 @@ impl App {
         attrs = unsafe { attrs.with_parent_window(Some(parent)) };
 
         #[cfg(debug_assertions)]
-        let class_name = "komorebi-switcher-debug::window";
+        let class_name = "wm-workspace-debug::window";
         #[cfg(not(debug_assertions))]
-        let class_name = "komorebi-switcher::window";
+        let class_name = "wm-workspace::window";
 
         attrs = attrs
             .with_decorations(false)
@@ -63,6 +66,8 @@ impl App {
             self.proxy.clone(),
             window_info,
             monitor_state,
+            options,
+            change_workspace_fn,
         )?;
 
         EguiWindow::new(window, &self.wgpu_instance, state)
@@ -81,11 +86,13 @@ pub struct SwitcherWindowView {
     taskbar: Taskbar,
     proxy: EventLoopProxy<AppMessage>,
     context_menu: ContextMenuState,
-    monitor_state: crate::komorebi::Monitor,
+    monitor_state: crate::state::Monitor,
     accent_light2_color: Option<egui::Color32>,
     accent_color: Option<egui::Color32>,
-    forgreound_color: Option<egui::Color32>,
+    foreground_color: Option<egui::Color32>,
     window_info: WindowRegistryInfo,
+    options: Options,
+    change_workspace: fn(usize, usize),
 }
 
 impl SwitcherWindowView {
@@ -95,7 +102,9 @@ impl SwitcherWindowView {
         taskbar: Taskbar,
         proxy: EventLoopProxy<AppMessage>,
         window_info: WindowRegistryInfo,
-        monitor_state: crate::komorebi::Monitor,
+        monitor_state: crate::state::Monitor,
+        options: Options,
+        change_workspace: fn(usize, usize),
     ) -> anyhow::Result<Self> {
         let mut view = Self {
             window,
@@ -106,8 +115,10 @@ impl SwitcherWindowView {
             context_menu: Self::create_context_menu()?,
             accent_color: None,
             accent_light2_color: None,
-            forgreound_color: None,
+            foreground_color: None,
             window_info,
+            options,
+            change_workspace,
         };
 
         if let Err(e) = view.update_system_colors() {
@@ -152,7 +163,7 @@ impl SwitcherWindowView {
 
         let color = settings.GetColorValue(UIColorType::Foreground)?;
         let color = egui::Color32::from_rgb(color.R, color.G, color.B);
-        self.forgreound_color.replace(color);
+        self.foreground_color.replace(color);
 
         Ok(())
     }
@@ -250,7 +261,7 @@ impl SwitcherWindowView {
 
     fn is_system_dark_mode(&self) -> bool {
         // FIXME: use egui internal dark mode detection
-        self.forgreound_color
+        self.foreground_color
             .map(|c| c == egui::Color32::WHITE)
             .unwrap_or(false)
     }
@@ -273,19 +284,72 @@ impl SwitcherWindowView {
             ui.scope(|ui| {
                 ui.style_mut().spacing.item_spacing = egui::vec2(4., 4.);
 
-                for workspace in self.monitor_state.workspaces.iter() {
+                // Optionally enable scroll switching
+                if self.options.enable_scroll_switching {
+                    let delta = ui.input(|i| i.raw_scroll_delta.y);
+                    if delta != 0.0 {
+                        let count = self.monitor_state.workspaces.len();
+                        if count > 0 {
+                            let focused_idx = self
+                                .monitor_state
+                                .workspaces
+                                .iter()
+                                .position(|w| w.focused)
+                                .unwrap_or(0);
+                            let next_idx = if delta > 0.0 {
+                                // scroll up -> previous
+                                focused_idx.checked_sub(1).unwrap_or(count - 1)
+                            } else {
+                                // scroll down -> next
+                                (focused_idx + 1) % count
+                            };
+                            (self.change_workspace)(self.monitor_state.index, next_idx);
+                        }
+                    }
+                }
+
+                let iter = self
+                    .monitor_state
+                    .workspaces
+                    .iter()
+                    .filter(|w| !(self.options.hide_empty_workspaces && w.is_empty));
+
+                let mut rendered_any = false;
+                for workspace in iter {
                     let btn = WorkspaceButton::new(workspace)
                         .dark_mode(Some(self.is_system_dark_mode()))
                         .line_focused_color_opt(self.line_focused_color())
-                        .text_color_opt(self.forgreound_color)
+                        .text_color_opt(self.foreground_color)
                         .line_on_top(self.is_taskbar_on_top());
 
                     if ui.add(btn).clicked() {
-                        crate::komorebi::change_workspace(
-                            self.monitor_state.index,
-                            workspace.index,
-                        );
+                        (self.change_workspace)(self.monitor_state.index, workspace.index);
                     }
+                    rendered_any = true;
+                }
+
+                if !rendered_any && !self.options.hide_if_offline {
+                    // Show offline label subtly when no workspaces rendered
+                    let text = "GlazeWM Offline";
+                    let font_id = egui::FontId::default();
+                    let color = self
+                        .foreground_color
+                        .unwrap_or_else(|| if self.is_system_dark_mode() {
+                            egui::Color32::WHITE
+                        } else {
+                            egui::Color32::BLACK
+                        });
+                    let galley = ui.painter().layout_no_wrap(text.into(), font_id.clone(), color);
+                    let size = galley.rect.size();
+                    let (rect, _resp) =
+                        ui.allocate_exact_size(size + egui::vec2(16., 8.), egui::Sense::hover());
+                    ui.painter().text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        text,
+                        font_id,
+                        color,
+                    );
                 }
             })
         })
@@ -313,7 +377,7 @@ impl EguiView for SwitcherWindowView {
         message: &AppMessage,
     ) -> anyhow::Result<()> {
         match message {
-            AppMessage::UpdateKomorebiState(state) => {
+            AppMessage::UpdateState(state) => {
                 self.monitor_state = state
                     .monitors
                     .iter()

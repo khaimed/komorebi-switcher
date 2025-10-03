@@ -6,4 +6,4 @@ New-Item -Force "./dist" -Type Directory > $null
 
 # Copy the komorebi-switcher.exe to the dist directory
 $targetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { './target' }
-Copy-Item -Force "$targetDir/release/komorebi-switcher.exe" "./dist/komorebi-switcher.exe"
+Copy-Item -Force "$targetDir/release/glazewm-switcher.exe" "./dist/glazewm-switcher.exe"

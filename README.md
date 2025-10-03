@@ -1,15 +1,17 @@
 <p align="center"><img src="./assets/icon.svg" width="125" /></p>
 
-# komorebi-switcher
+# glazewm-switcher
 
-A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komorebi/) tiling window manager, seamlessly integrated the Windows 10/11 taskbar.
+A minimal workspace switcher for Windows taskbars, tailored for [GlazeWM](https://github.com/glzr-io/glazewm).
+
+Fork note: This distribution is maintained by `khaimed`. Original project and much of the groundwork were created by Amr Bashir (`amrbashir`). This fork focuses on a clean GlazeWM-only experience.
 
 ![Image showcasing komorebi switcher in Windows 11 dark mode](.github/image-1.jpg)
 ![Image showcasing komorebi switcher in Windows 11 light mode](.github/image-2.jpg)
 
 ## Install
 
-<a href="https://github.com/amrbashir/komorebi-switcher/releases/latest">
+<a href="https://github.com/khaimed/glazewm-switcher/releases/latest">
   <picture>
     <img alt="Get it on GitHub" src="https://github.com/LawnchairLauncher/lawnchair/blob/7336b4a0481406ff9ddd3f6c95ea05830890b1dc/docs/assets/badge-github.png" height="60">
   </picture>
@@ -18,8 +20,8 @@ A minimal workspace switcher for the [Komorebi](https://github.com/LGUG2Z/komore
 Or through PowerShell:
 
 ```powershell
-irm "https://github.com/amrbashir/komorebi-switcher/releases/latest/download/komorebi-switcher-setup.exe" -OutFile "komorebi-switcher-setup.exe"
-& "./komorebi-switcher-setup.exe"
+irm "https://github.com/khaimed/glazewm-switcher/releases/latest/download/glazewm-switcher-setup.exe" -OutFile "glazewm-switcher-setup.exe"
+& "./glazewm-switcher-setup.exe"
 ```
 
 ## Usage

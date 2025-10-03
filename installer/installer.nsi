@@ -1,22 +1,22 @@
-Name "komorebi-switcher"
-OutFile "komorebi-switcher-setup.exe"
+Name "glazewm-switcher"
+OutFile "..\\dist\\glazewm-switcher-setup.exe"
 Unicode true
 ManifestDPIAware true
 ManifestDPIAwareness PerMonitorV2
 SetCompressor /SOLID lzma
-InstallDir "$LOCALAPPDATA\komorebi-switcher"
-Icon "icon.ico"
+InstallDir "$LOCALAPPDATA\glazewm-switcher"
+Icon "..\\assets\\icon.ico"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 
 RequestExecutionLevel user
 
-!define PRODUCTNAME "komorebi-switcher"
-!define MAINBINARYNAME "komorebi-switcher.exe"
+!define PRODUCTNAME "glazewm-switcher"
+!define MAINBINARYNAME "glazewm-switcher.exe"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
-!define VERSION "0.7.2"
-!define PUBLISHER "Amr Bashir"
+!define VERSION "0.1.0"
+!define PUBLISHER "khaimed"
 
 VIProductVersion "${VERSION}.0"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"
@@ -24,9 +24,9 @@ VIAddVersionKey "FileDescription" "${PRODUCTNAME}"
 VIAddVersionKey "FileVersion" "${VERSION}.0"
 VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "CompanyName" "${PUBLISHER}"
-VIAddVersionKey "LegalCopyright" "© 2025 ${PUBLISHER}. Licensed under the MIT License."
+VIAddVersionKey "LegalCopyright" "© 2025 ${PUBLISHER}. Original by Amr Bashir (MIT)."
 
-!define MUI_ICON "icon.ico"
+!define MUI_ICON "..\\assets\\icon.ico"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -45,14 +45,14 @@ VIAddVersionKey "LegalCopyright" "© 2025 ${PUBLISHER}. Licensed under the MIT L
 Section
     SetOutPath "$INSTDIR"
 
-    File "${MAINBINARYNAME}"
+    File "..\\target\\release\\${MAINBINARYNAME}"
 
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
     WriteRegStr HKCU "${UNINSTKEY}" "DisplayName" "${PRODUCTNAME}"
     WriteRegStr HKCU "${UNINSTKEY}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}$\""
     WriteRegStr HKCU "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
-    WriteRegStr HKCU "${UNINSTKEY}" "Publisher" "Amr Bashir"
+    WriteRegStr HKCU "${UNINSTKEY}" "Publisher" "${PUBLISHER}"
     WriteRegStr HKCU "${UNINSTKEY}" "InstallLocation" "$\"$INSTDIR$\""
     WriteRegStr HKCU "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
     WriteRegDWORD HKCU "${UNINSTKEY}" "NoModify" "1"

@@ -3,7 +3,7 @@ $version = $args[0];
 $path = "Cargo.toml"
 (Get-Content $path) -replace "version = `"[0-9]+.[0-9]+.[0-9]+`"", "version = `"$version`"" | Set-Content $path
 
-cargo update -p komorebi-switcher # update the lock file
+cargo update -p glazewm-switcher # update the lock file
 
 $path = "installer/installer.nsi"
 (Get-Content $path) -replace "VERSION `"[0-9]+.[0-9]+.[0-9]+`"", "VERSION `"$version`"" | Set-Content $path

@@ -9,11 +9,11 @@ use crate::utils;
 use crate::window_registry_info::WindowRegistryInfo;
 
 #[cfg(debug_assertions)]
-const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher-debug::host");
+const HOST_CLASSNAME: PCWSTR = w!("wm-workspace-debug::host");
 #[cfg(not(debug_assertions))]
-const HOST_CLASSNAME: PCWSTR = w!("komorebi-switcher::host");
+const HOST_CLASSNAME: PCWSTR = w!("wm-workspace::host");
 
-pub const IN_RESIZE_PROP: PCWSTR = w!("komorebi::in_resize");
+pub const IN_RESIZE_PROP: PCWSTR = w!("wm-workspace::in_resize");
 
 pub unsafe fn create_host(
     taskbar_hwnd: HWND,

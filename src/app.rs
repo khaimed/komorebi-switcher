@@ -7,10 +7,11 @@ use winit::window::WindowId;
 use crate::egui_glue::EguiWindow;
 use crate::utils::{MultiMap, RECTExt};
 use crate::window_registry_info::WindowRegistryInfo;
+use crate::options::Options;
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-    UpdateKomorebiState(crate::komorebi::State),
+    UpdateState(crate::state::State),
     MenuEvent(muda::MenuEvent),
     SystemSettingsChanged,
     DpiChanged,
@@ -30,7 +31,9 @@ pub struct App {
     pub proxy: EventLoopProxy<AppMessage>,
     pub windows: MultiMap<WindowId, Option<String>, EguiWindow>,
     pub tray_icon: Option<crate::tray_icon::TrayIcon>,
-    pub komorebi_state: crate::komorebi::State,
+    pub state: crate::state::State,
+    pub change_workspace_fn: fn(usize, usize),
+    pub options: Options,
 }
 
 impl App {
@@ -41,20 +44,26 @@ impl App {
         });
 
         let tray_icon = crate::tray_icon::TrayIcon::new(proxy.clone()).ok();
+        let options = Options::from_env();
 
-        let komorebi_state = crate::komorebi::read_state().unwrap_or_default();
-
-        {
-            let proxy = proxy.clone();
-            std::thread::spawn(move || crate::komorebi::listen_for_state(proxy));
-        }
+        // GlazeWM-only: read initial state and start listener
+        let (state, change_workspace_fn) = match crate::glazewm::read_state() {
+            Ok(state) => {
+                let proxy_clone = proxy.clone();
+                std::thread::spawn(move || crate::glazewm::listen_for_state(proxy_clone));
+                (state, crate::glazewm::change_workspace as fn(usize, usize))
+            }
+            Err(_) => (Default::default(), crate::glazewm::change_workspace as fn(usize, usize)),
+        };
 
         Ok(Self {
             wgpu_instance,
             windows: Default::default(),
             proxy,
             tray_icon,
-            komorebi_state,
+            state,
+            change_workspace_fn,
+            options,
         })
     }
 
@@ -63,20 +72,36 @@ impl App {
 
         tracing::debug!("Found {} taskbars: {taskbars:?}", taskbars.len());
 
-        for monitor in self.komorebi_state.monitors.clone().into_iter() {
+        for monitor in self.state.monitors.clone().into_iter() {
             // skip already existing window for this monitor
             let monitor_id = monitor.id.clone();
             if self.windows.contains_key_alt(&Some(monitor_id.clone())) {
                 continue;
             }
 
-            let Some(taskbar) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) else {
+            // Try to find a taskbar whose rect is contained within the monitor rect.
+            // If the monitor rect is empty (e.g., GlazeWM default), map by monitor index to taskbar index.
+            let selected_taskbar = if let Some(tb) = taskbars.iter().find(|tb| monitor.rect.contains(&tb.rect)) {
+                Some(tb)
+            } else {
                 tracing::warn!(
                     "Failed to find taskbar for monitor: {}-{} {:?}",
                     monitor.name,
                     monitor.id,
                     monitor.rect
                 );
+
+                // Map empty monitor rects to taskbars by index to ensure one switcher per taskbar.
+                taskbars.get(monitor.index).or_else(|| {
+                    // Prefer the primary taskbar class name; otherwise pick the first available taskbar
+                    let primary = taskbars
+                        .iter()
+                        .find(|tb| crate::utils::get_class_name(tb.hwnd) == crate::taskbar::TASKBAR_CLASS_NAME);
+                    primary.or_else(|| taskbars.first())
+                })
+            };
+
+            let Some(taskbar) = selected_taskbar else {
                 continue;
             };
 
@@ -88,7 +113,7 @@ impl App {
                 taskbar.hwnd
             );
 
-            let window = self.create_switcher_window(event_loop, *taskbar, monitor)?;
+            let window = self.create_switcher_window(event_loop, *taskbar, monitor, self.options, self.change_workspace_fn)?;
 
             self.windows.insert(window.id(), Some(monitor_id), window);
         }
@@ -119,9 +144,9 @@ impl App {
                 self.windows.remove(window_id);
             }
 
-            AppMessage::UpdateKomorebiState(state) => {
+            AppMessage::UpdateState(state) => {
                 // Update the komorebi state
-                self.komorebi_state = state.clone();
+                self.state = state.clone();
 
                 // Create switcher windows for new monitors if needed
                 self.create_switchers(event_loop)?;
@@ -146,7 +171,7 @@ impl App {
                     tray.destroy_items_for_switchers()?;
 
                     let switchers_ids = self
-                        .komorebi_state
+                        .state
                         .monitors
                         .iter()
                         .filter(|m| self.windows.contains_key_alt(&Some(m.id.clone())))

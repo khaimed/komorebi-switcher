@@ -1,4 +1,4 @@
-use crate::komorebi::Workspace;
+use crate::state::Workspace;
 
 pub struct WorkspaceButton<'a> {
     workspace: &'a Workspace,
