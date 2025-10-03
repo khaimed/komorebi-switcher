@@ -11,7 +11,7 @@ Fork note: This distribution is maintained by `khaimed`. Original project and mu
 
 ## Install
 
-<a href="https://github.com/khaimed/glazewm-switcher/releases/latest">
+<a href="https://github.com/khaimed/komorebi-switcher/releases">
   <picture>
     <img alt="Get it on GitHub" src="https://github.com/LawnchairLauncher/lawnchair/blob/7336b4a0481406ff9ddd3f6c95ea05830890b1dc/docs/assets/badge-github.png" height="60">
   </picture>
