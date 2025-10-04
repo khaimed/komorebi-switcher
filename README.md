@@ -20,7 +20,7 @@ Fork note: This distribution is maintained by `khaimed`. Original project and mu
 Or through PowerShell:
 
 ```powershell
-irm "https://github.com/khaimed/glazewm-switcher/releases/latest/download/glazewm-switcher-setup.exe" -OutFile "glazewm-switcher-setup.exe"
+irm "https://github.com/khaimed/komorebi-switcher/releases/download/v0.7.2/glazewm-switcher-setup.exe" -OutFile "glazewm-switcher-setup.exe"
 & "./glazewm-switcher-setup.exe"
 ```
 
